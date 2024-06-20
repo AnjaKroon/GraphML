@@ -177,7 +177,7 @@ class Preprocessor:
             timestep_data['geoid_o'] += geoid_offset * i
             timestep_data['geoid_d'] += geoid_offset * (i+1)
             timesteps.append(timestep_data)
-
+            
         return pd.concat(timesteps, ignore_index=True), pd.concat(self.epidemiology_timesteps)
 
     def get_data_for_graphRNN(self): 
@@ -210,6 +210,11 @@ def draw_network(data, weight_name='visitor_flows', node_size=1, line_width_mod=
     ax.autoscale()
     plt.show()
 
+def get_adj_from_plot(data):
+    graph = nx.from_pandas_edgelist(data, 'geoid_o', 'geoid_d',  edge_attr='visitor_flows')
+    adjacency_matrix = nx.adjacency_matrix(graph, weight='visitor_flows')
+    return adjacency_matrix
+
 if __name__ == "__main__":
 
     flow_dataset = "data/daily_county2county_2019_01_01.csv"
@@ -224,3 +229,8 @@ if __name__ == "__main__":
     print(signals_df.shape)
 
     draw_network(graph_df)
+
+    adjacency_matrix = get_adj_from_plot(graph_df)
+
+    # print(adjacency_matrix)
+
