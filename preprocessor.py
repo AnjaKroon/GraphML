@@ -30,6 +30,7 @@ class Preprocessor:
         self.k = k
         self.skew = skew
         self.plottable = plottable
+        self.geoid_offset = 1000000
 
         # load in data
         self.epidemiology = pd.read_csv(epi_dataset, keep_default_na=False, na_values=[""])
@@ -49,8 +50,16 @@ class Preprocessor:
             self.epidemiology_timesteps[i] = epi[epi['geoid_o'].isin(intersection)]
         
         self.flow = self.flow[self.flow['geoid_o'].isin(intersection) & self.flow['geoid_d'].isin(intersection)]
-
-
+    
+    def set_timestep_offset_epi_dataset(from_timestep=0):
+        timesteps = []
+        for i in range(from_timestep, self.timegraph_size):
+            # update epi geoid
+            self.epidemiology_timesteps[i]['geoid_o'] = (self.epidemiology_timesteps[i]['geoid_o'] % self.geoid_offset) + self.geoid_offset * i
+        return self
+    
+    def get_epi_dataset():
+        return self.epidemiology_timesteps
 
     def normalize(self, column):
         weights = self.flow[column]
@@ -147,15 +156,14 @@ class Preprocessor:
         self.flow = pd.concat([kron_df, node_signal_flows], axis=1)
 
     def combined_manual_kronecker(self):
-        geoid_offset = 1000000
         timesteps = []
         for i in range(self.timegraph_size - 1):
             timestep_data = self.flow.copy()\
                 .merge(self.epidemiology_timesteps[i], on="geoid_o")
                 #.merge(self.epidemiology_timesteps[i+1].copy().rename(index={'geoid_o': 'geoid_d'}), on="geoid_d") # if we want the destination nodes to also have signals
             timestep_data['timestep'] = i
-            timestep_data['geoid_o'] += geoid_offset * i
-            timestep_data['geoid_d'] += geoid_offset * (i+1)
+            timestep_data['geoid_o'] += self.geoid_offset * i
+            timestep_data['geoid_d'] += self.geoid_offset * (i+1)
             if (self.plottable):
                 timestep_data['lng_o'] += 150 * i
                 timestep_data['lng_d'] += 150 * (i+1)
@@ -164,20 +172,19 @@ class Preprocessor:
         return pd.concat(timesteps, ignore_index=True)
 
     def disjoint_manual_kronecker(self):
-        geoid_offset = 1000000
         timesteps = []
         for i in range(self.timegraph_size):
             # update epi geoid
-            self.epidemiology_timesteps[i]['geoid_o'] += geoid_offset * i
+            self.epidemiology_timesteps[i]['geoid_o'] += self.geoid_offset * i
 
         for i in range(self.timegraph_size - 1):
             # Updae flow geoid
             timestep_data = self.flow.copy()
             timestep_data['timestep'] = i
-            timestep_data['geoid_o'] += geoid_offset * i
-            timestep_data['geoid_d'] += geoid_offset * (i+1)
+            timestep_data['geoid_o'] += self.geoid_offset * i
+            timestep_data['geoid_d'] += self.geoid_offset * (i+1)
             timesteps.append(timestep_data)
-            
+
         return pd.concat(timesteps, ignore_index=True), pd.concat(self.epidemiology_timesteps)
 
     def get_data_for_graphRNN(self): 
@@ -210,11 +217,6 @@ def draw_network(data, weight_name='visitor_flows', node_size=1, line_width_mod=
     ax.autoscale()
     plt.show()
 
-def get_adj_from_plot(data):
-    graph = nx.from_pandas_edgelist(data, 'geoid_o', 'geoid_d',  edge_attr='visitor_flows')
-    adjacency_matrix = nx.adjacency_matrix(graph, weight='visitor_flows')
-    return adjacency_matrix
-
 if __name__ == "__main__":
 
     flow_dataset = "data/daily_county2county_2019_01_01.csv"
@@ -229,8 +231,3 @@ if __name__ == "__main__":
     print(signals_df.shape)
 
     draw_network(graph_df)
-
-    adjacency_matrix = get_adj_from_plot(graph_df)
-
-    # print(adjacency_matrix)
-
