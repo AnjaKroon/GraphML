@@ -58,7 +58,7 @@ class Preprocessor:
             self.epidemiology_timesteps[i]['geoid_o'] = (self.epidemiology_timesteps[i]['geoid_o'] % self.geoid_offset) + self.geoid_offset * i
         return self
     
-    def get_epi_dataset():
+    def get_epi_dataset(self):
         return self.epidemiology_timesteps
 
     def normalize(self, column):
@@ -216,6 +216,11 @@ def draw_network(data, weight_name='visitor_flows', node_size=1, line_width_mod=
 
     ax.autoscale()
     plt.show()
+
+def get_adj_from_plot(data):
+    graph = nx.from_pandas_edgelist(data, 'geoid_o', 'geoid_d',  edge_attr='visitor_flows')
+    adjacency_matrix = nx.adjacency_matrix(graph, weight='visitor_flows')
+    return adjacency_matrix
 
 if __name__ == "__main__":
 
