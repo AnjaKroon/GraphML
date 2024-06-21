@@ -9,18 +9,21 @@ from GraphRNN import Graph_RNN, Neighbor_Aggregation
 import matplotlib.pyplot as plt
 import json
 import torch.profiler
+import numpy as np
 
-def train(model, data_loader, criterion, optimizer, pred_hor, device, n_epochs =10, save_name=None, max_grad_norm=1):
+
+def train(model, data_loader, criterion, optimizer, pred_hor, device,
+          learning_rate_scheduler, n_epochs =10, save_name=None, max_grad_norm=1, n_plots=None):
     losses = []
     parameter_mag = {param_name: [] for param_name, param in model.named_parameters()}
     gradients = {}
     gradients["pre_limit"] = {param_name: [] for param_name, param in model.named_parameters()}
     gradients["post_limit"] = {param_name: [] for param_name, param in model.named_parameters()}
     hidden_states = []
-    for epoch in range(n_epochs):
+    for epoch in tqdm(range(n_epochs), desc="Epoch"):
         epoch_loss = 0
         batch_num = 0
-        for input_edge_weights, input_node_data, target_edge_weights, target_node_data in tqdm(data_loader):
+        for input_edge_weights, input_node_data, target_edge_weights, target_node_data in data_loader:
             if batch_num==1 and epoch == 1:
                 # prof.step()
                 pass
@@ -69,29 +72,53 @@ def train(model, data_loader, criterion, optimizer, pred_hor, device, n_epochs =
         #Calculate the average loss per prediction, so per node, per time step
         epoch_loss = epoch_loss/((pred_hor) * len(data_loader) * input_node_data.shape[1])
         losses.append(epoch_loss)
-        print(f"EPOCH: {epoch} ", end="")
-        
-        print(f"$ Loss: { epoch_loss:.3e} ")
-        
-        print(f"Input: {input_node_data[0, :, :5, 0]} ")
-        print(f"$ Output: {output[0, -pred_hor:, :5, 0]}")
-        print(f"$ Target: {target_node_data[0, :, :5, 0]}")
+        if n_plots is not None:
+            if epoch % (int(n_epochs)/n_plots)== 0 or epoch == n_epochs-1:
+                print(f"EPOCH: {epoch} ", end="")
+                print(f"$ Loss: { epoch_loss:.3e} ")
+                print(f"Input: {input_node_data[0, :, :5, 0]} ")
+                print(f"$ Output: {output[0, -pred_hor:, :5, 0]}")
+                print(f"$ Target: {target_node_data[0, :, :5, 0]}")
+                print(f"lr: {optimizer.param_groups[0]['lr']}")
+                print(f"shape of input_node_data: {input_node_data.shape}")
+                print(f"shape of output: {output.shape}")
+                print(f"shape of target_node_data: {target_node_data.shape}")
+                
+                plt.figure()
+                num_plot_nodes = 5
+                colors = plt.cm.jet(np.linspace(0, 1, num_plot_nodes))
+                rand_node_idx = np.random.randint(0, input_node_data.shape[2]-1, num_plot_nodes)
+                for i,node in enumerate(rand_node_idx):
+
+                    plt.plot( input_node_data[0, :, node, 0].cpu().detach().numpy(), label=f"Node {node} Input", color=colors[i])
+                    plt.scatter(np.arange(input_hor, input_hor+pred_hor),
+                                target_node_data[0, :, node, 0].cpu().detach().numpy(), label=f"Node {node} Target", marker="x",
+                                color=colors[i])
+                    plt.plot(output[0, :, node, 0].cpu().detach().numpy(), 
+                            label=f"Node {node} Output", linestyle="--", color=colors[i])
+                plt.legend()
+                plt.show()
+            
+            
+        learning_rate_scheduler.step()
+            
     if save_name is not None:
         save_string = f"{save_name}_epoch_{epoch}_lr_{optimizer.param_groups[0]['lr']}_batch_{data_loader.batch_size} _pred_{pred_hor}_input_{input_hor}_num_dates_{len(data_loader)}_h_size_{model.h_size}"
-        torch.save(model.state_dict(), f"models\model_state_dict_{save_string}.pth")
-        with open(f"losses\losses_{save_string}.json", "w") as f:
+        torch.save(model.state_dict(), f"GraphRNN\models\model_state_dict_{save_string}.pth")
+        with open(f"GraphRNN\losses\losses_{save_string}.json", "w") as f:
             json.dump(losses, f)
     return losses, parameter_mag, gradients, hidden_states
 
 config = {  "n_epochs": 800,
-            "num_dates": 9,
+            "num_dates": 10,
             "input_hor": 7,
-            "pred_hor": 1,
+            "pred_hor": 2,
             "h_size": 70,
             "batch_size": 5,
-            "lr": 0.0003,
-            "use_neighbors": True,
+            "lr": 0.003,
             "max_grad_norm": 1,
+            "num_lr_steps": 10,
+            "lr_decay": 0.8
             
          }
 
@@ -123,7 +150,7 @@ if __name__ == "__main__":
         data_set.visualize(0, num_nodes=5, num_edges=5)
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+    print(f"Device: {device}")
     # data_sampler = GraphRNN_DataSampler(data_set, input_hor=input_hor, pred_hor=pred_hor)
     data_loader = torch.utils.data.DataLoader(data_set, batch_size=config["batch_size"], pin_memory=True, num_workers=0, shuffle=True)
     
@@ -150,7 +177,8 @@ if __name__ == "__main__":
 
     criterion = torch.nn.MSELoss().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
-    learning_rate_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
+    
+    learning_rate_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=config["n_epochs"]/config["num_lr_steps"], gamma=config["lr_decay"])
 
     torch.autograd.set_detect_anomaly(False)
 
@@ -184,12 +212,15 @@ if __name__ == "__main__":
         else:
             print(f"No log files found in {log_dir}")
     else:
-        losses, parameter_mag, gradients, hidden_state_mag = train(model, data_loader,
-                        criterion, optimizer,
-                        config["pred_hor"], device, 
+        losses, parameter_mag, gradients, hidden_state_mag = train(model = model , data_loader = data_loader, criterion=
+                        criterion, optimizer=optimizer,pred_hor=
+                        config["pred_hor"], device=device, 
+                        learning_rate_scheduler=learning_rate_scheduler,
                         n_epochs=config["n_epochs"],
                         max_grad_norm=config["max_grad_norm"],
-                        save_name="test")
+                        save_name="test",
+                        n_plots=5
+                        )
 
 
     
