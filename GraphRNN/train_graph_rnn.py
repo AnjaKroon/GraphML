@@ -87,7 +87,7 @@ config = {  "n_epochs": 800,
             "num_dates": 9,
             "input_hor": 7,
             "pred_hor": 1,
-            "h_size": 170,
+            "h_size": 70,
             "batch_size": 5,
             "lr": 0.0003,
             "use_neighbors": True,
@@ -130,14 +130,20 @@ if __name__ == "__main__":
     print("Data loaded.")
     input_edge_weights, input_node_data, target_edge_weights, target_node_data = next(iter(data_loader))
     
+    fixed_edge_weights = input_edge_weights[0,0,:,:]
+    from Neighbor_Agregation import Neighbor_Aggregation
+    neighbor_aggregator = Neighbor_Aggregation(n_nodes = data_set.n_nodes, h_size=config["h_size"],
+                                               f_out_size=config["h_size"],fixed_edge_weights=fixed_edge_weights,
+                                               device=device, dtype=torch.float32)
+    
     model  = Graph_RNN(n_nodes = data_set.n_nodes,
                        n_features = data_set.n_features,
                        h_size = config["h_size"],
                        f_out_size =config["h_size"],
-                       fixed_edge_weights = input_edge_weights[0,0,:,:],
+                       fixed_edge_weights = fixed_edge_weights,
                        device=device,
                        dtype=torch.float32,
-                       use_neighbors=config["use_neighbors"]
+                       neighbor_aggregator=neighbor_aggregator
                        )
     
     
