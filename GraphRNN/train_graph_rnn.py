@@ -20,7 +20,11 @@ def train(model, data_loader, criterion, optimizer, pred_hor, device,
     gradients["pre_limit"] = {param_name: [] for param_name, param in model.named_parameters()}
     gradients["post_limit"] = {param_name: [] for param_name, param in model.named_parameters()}
     hidden_states = []
+    input_hor = data_loader.dataset.input_hor
+
     for epoch in tqdm(range(n_epochs), desc="Epoch"):
+        save_string = f"{save_name}_epoch_{epoch}_lr_{optimizer.param_groups[0]['lr']}_batch_{data_loader.batch_size} _pred_{pred_hor}_input_{input_hor}_num_dates_{len(data_loader)}_h_size_{model.h_size}"
+
         epoch_loss = 0
         batch_num = 0
         for input_edge_weights, input_node_data, target_edge_weights, target_node_data in data_loader:
@@ -29,7 +33,6 @@ def train(model, data_loader, criterion, optimizer, pred_hor, device,
                 pass
 
             
-            input_hor = input_node_data.shape[1]
             input_edge_weights = input_edge_weights.to(device)
             input_node_data = input_node_data.to(device)
             target_edge_weights = target_edge_weights.to(device)
@@ -96,29 +99,29 @@ def train(model, data_loader, criterion, optimizer, pred_hor, device,
                                 color=colors[i])
                     plt.plot(output[0, :, node, 0].cpu().detach().numpy(), 
                             label=f"Node {node} Output", linestyle="--", color=colors[i])
-                plt.legend()
-                plt.show()
-            
+                plt.legend(loc = "upper left")
+                plt.title(f"Loss{epoch_loss}: save_string ")
+                plt.savefig(f"GraphRNN\plots\covid_predictions\plot_{save_string}_{epoch}.png")
+                plt.close()
             
         learning_rate_scheduler.step()
             
     if save_name is not None:
-        save_string = f"{save_name}_epoch_{epoch}_lr_{optimizer.param_groups[0]['lr']}_batch_{data_loader.batch_size} _pred_{pred_hor}_input_{input_hor}_num_dates_{len(data_loader)}_h_size_{model.h_size}"
         torch.save(model.state_dict(), f"GraphRNN\models\model_state_dict_{save_string}.pth")
         with open(f"GraphRNN\losses\losses_{save_string}.json", "w") as f:
             json.dump(losses, f)
     return losses, parameter_mag, gradients, hidden_states
 
 config = {  "n_epochs": 800,
-            "num_dates": 10,
-            "input_hor": 7,
-            "pred_hor": 2,
-            "h_size": 70,
+            "num_dates": 17,
+            "input_hor": 14,
+            "pred_hor": 3,
+            "h_size": 170,
             "batch_size": 5,
-            "lr": 0.003,
+            "lr": 0.0008,
             "max_grad_norm": 1,
-            "num_lr_steps": 10,
-            "lr_decay": 0.8
+            "num_lr_steps": 1,
+            "lr_decay": 1
             
          }
 
