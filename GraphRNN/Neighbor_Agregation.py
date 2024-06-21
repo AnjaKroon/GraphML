@@ -163,34 +163,59 @@ class Head_Graph(nn.Module):
         self.value = nn.Linear(h_size,f_out_size,bias=False)
         self.register_buffer('adj_matrix', adj_matrix)
         self.dropout = nn.Dropout(0.1)
-        
+        self.h_size=h_size
+        self.f_out_size=f_out_size
     def forward(self, x):
+    #     B, N, C = x.shape # (B, N, h_size)
+    #     k = self.key(x) # (B, N, F_out)
+    #     q = self.query(x) # (B, N, F_out)
+    #     v = self.value(x) # (B, N, F_out)
+
+    #     adj_matrix_batch = self.adj_matrix.to_dense().expand(B, N, N).to_sparse()
+       
+       
+    #     wei = q @ k.transpose(-2,-1) * k.shape[-1]**-0.5 # (B, N, N)
+    #     #see if masking is possible before.
+    #     #none of the above matrices are sparse, so processing as dense paralelly in batches.
+    #     #TO DO: FIND A WAY TO AVOID MAKING IT DENSE AGAIN
+    #     wei = wei.masked_fill(self.adj_matrix.to_dense() == 0, float("-inf")) # mask out non-neighbours
+    #     wei = F.softmax(wei, dim=-1) # still (B, N, N)
+    #     wei=wei.to_sparse() #wei is now sparse after softmax with adjacency mask
+    #     wei = wei+ adj_matrix_batch.to_sparse() # add adjacency matrix to the weights (edge informed attention)
+    #     #wei = self.dropout(wei) 
+        
+    #     out = torch.zeros((B, N, v.shape[-1]), device=x.device)
+    #     #process batch-wise
+    #    # print(wei.shape[0])
+    #     for b in range(wei.shape[0]):
+    #         out[b]= torch.sparse.mm(wei[b], v[b]) # (N, N) @ (N, F_out) = (N, F_out)
+
+        
+    #     #out = wei @ v # (B,N,N) @ (B,N,F_out) = (B,N,F_out)
         B, N, C = x.shape # (B, N, h_size)
-        k = self.key(x) # (B, N, F_out)
-        q = self.query(x) # (B, N, F_out)
-        v = self.value(x) # (B, N, F_out)
-
-        adj_matrix_batch = self.adj_matrix.to_dense().expand(B, N, N).to_sparse()
-       
-       
-        wei = q @ k.transpose(-2,-1) * k.shape[-1]**-0.5 # (B, N, N)
-        #see if masking is possible before.
-        #none of the above matrices are sparse, so processing as dense paralelly in batches.
-        #TO DO: FIND A WAY TO AVOID MAKING IT DENSE AGAIN
-        wei = wei.masked_fill(self.adj_matrix.to_dense() == 0, float("-inf")) # mask out non-neighbours
-        wei = F.softmax(wei, dim=-1) # still (B, N, N)
-        wei.to_sparse() #wei is now sparse after softmax with adjacency mask
-        wei = wei+ adj_matrix_batch.to_sparse() # add adjacency matrix to the weights (edge informed attention)
-        wei = self.dropout(wei) 
         
-        out = torch.zeros((B, N, v.shape[-1]), device=x.device)
-        #process batch-wise
-       # print(wei.shape[0])
-        for b in range(wei.shape[0]):
-            out[b]= torch.sparse.mm(wei[b], v[b]) # (N, N) @ (N, F_out) = (N, F_out)
-
+        out = torch.zeros((B, N, self.f_out_size), device=x.device)
+        for i in range(B):
+            k = self.key(x[i])
+            q = self.query(x[i])
+            v = self.value(x[i])
+            wei = q @ k.transpose(-2,-1) * k.shape[-1]**-0.5 # (B, N, N)
+            
+            wei = wei.masked_fill(self.adj_matrix.to_dense() == 0, float("-inf")) # mask out non-neighbours
+            wei = F.softmax(wei, dim=-1) # still (B, N, N)
+            #print(self.adj_matrix)
+        # wei.to_sparse() #wei is now sparse after softmax with adjacency mask
+            wei=wei.view(N,N)
+            #self.adj_matrix=self.adj_matrix.view(1,N,N).to_sparse()
+           # print(wei.shape)
+            self.adj_matrix=self.adj_matrix.to_dense().view(N,N).to_sparse()
+           # wei = wei+ self.adj_matrix # add adjacency matrix to the weights (edge informed attention) 
+            wei = self.dropout(wei)
+            
+            out[i] = torch.sparse.mm(wei, v) # (N, N) @ (N, F_out) = (N, F_out)   
+            break
         
-        #out = wei @ v # (B,N,N) @ (B,N,F_out) = (B,N,F_out)
+        
 
         
         return out
