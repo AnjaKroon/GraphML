@@ -5,7 +5,7 @@ import torch
 import pandas as pd
 from tqdm import tqdm
 from GraphRNN_utils import GraphRNN_dataset, GraphRNN_DataSampler
-from GraphRNN import Graph_RNN, Neighbor_Aggregation
+from GraphRNN import Graph_RNN 
 import matplotlib.pyplot as plt
 
 import torch.profiler
@@ -57,11 +57,10 @@ def train(model, data_loader, criterion, optimizer, pred_hor, device, n_epochs =
 
 
 
-
 if __name__ == "__main__":
     print("Starting training run...")
-    flow_dataset = "data/daily_county2county_2019_01_01.csv"
-    epi_dataset = "data_epi/epidemiology.csv"
+    flow_dataset = "GraphML/data/daily_county2county_2019_01_01.csv"
+    epi_dataset = "GraphML/data_epi/epidemiology.csv"
     epi_dates = ["2020-06-09", "2020-06-10", "2020-06-11", "2020-06-12",
                  "2020-06-13", "2020-06-14", "2020-06-15", "2020-06-16",
                  "2020-06-17", "2020-06-18", "2020-06-19", "2020-06-20",
@@ -133,7 +132,7 @@ if __name__ == "__main__":
         print("Starting training with profiling...")
         losses, parameter_mag = train(model, data_loader,
                                   criterion, optimizer,
-                                  pred_hor, device, n_epochs=250,
+                                  pred_hor, device, n_epochs=3,
                                   save="model_state_dict.pth")
         print("Finished training with profiling.")
 
@@ -144,6 +143,7 @@ if __name__ == "__main__":
     else:
         print(f"No log files found in {log_dir}")
     
+    torch.profiler.profile.export_chrome_trace("trace.json")
 
     print("Storing model state...")
     torch.save(model.state_dict(), 'model_state_dict.pth')

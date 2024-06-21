@@ -1,6 +1,6 @@
 import torch
 import torch.sparse as sparse
-from Neighbor_Agregation import Neighbor_Aggregation
+from Neighbor_Agregation import Neighbor_Attention_block
 from tqdm import tqdm
 class Graph_RNN(torch.nn.Module):
     def __init__(self, n_nodes, n_features, h_size, f_out_size, fixed_edge_weights=None , device='cpu', dtype=torch.float32):
@@ -45,7 +45,7 @@ class Graph_RNN(torch.nn.Module):
         else:
             self.node_idx = None
             
-        self.AG = Neighbor_Aggregation(n_nodes, h_size, f_out_size, fixed_edge_weights= fixed_edge_weights, device=self.device, dtype=self.dtype)
+        self.AG= Neighbor_Attention_block(3,3,n_nodes, h_size, f_out_size,edge_weights=self.fixed_edge_weights, device=self.device)
         
         self.H  = None
         
@@ -100,7 +100,7 @@ class Graph_RNN(torch.nn.Module):
             if self.fixed_edge_weights is None:
                 raise ValueError("Edge weights not provided. Provide edge weights to the forward pass or during initialization.")
             
-        self.neigh_ag = self.AG(self.H, edge_weights=edge_weights)
+        self.neigh_ag = self.AG(self.H)#, edge_weights=edge_weights)
         self.A_expanded = self.A.unsqueeze(0).unsqueeze(1).expand(x_in.shape[0], self.n_nodes, self.h_size, self.h_size)
         self.B_expanded = self.B.unsqueeze(0).unsqueeze(1).expand(x_in.shape[0], self.n_nodes, self.h_size, self.n_features)
         self.C_expanded = self.C.unsqueeze(0).unsqueeze(1).expand(x_in.shape[0], self.n_nodes, self.h_size, self.f_out_size)
