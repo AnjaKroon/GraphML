@@ -5,28 +5,34 @@ import torch
 import pandas as pd
 from tqdm import tqdm
 from GraphRNN_utils import GraphRNN_dataset, GraphRNN_DataSampler
-from GraphRNN import Graph_RNN#, Neighbor_Aggregation
+from GraphRNN import Graph_RNN, Neighbor_Aggregation
 import matplotlib.pyplot as plt
 import json
 import torch.profiler
+import numpy as np
 
-def train(model, data_loader, criterion, optimizer, pred_hor, device, n_epochs =10, save_name=None, max_grad_norm=1):
+
+def train(model, data_loader, criterion, optimizer, pred_hor, device,
+          learning_rate_scheduler, n_epochs =10, save_name=None, max_grad_norm=1, n_plots=None):
     losses = []
     parameter_mag = {param_name: [] for param_name, param in model.named_parameters()}
     gradients = {}
     gradients["pre_limit"] = {param_name: [] for param_name, param in model.named_parameters()}
     gradients["post_limit"] = {param_name: [] for param_name, param in model.named_parameters()}
     hidden_states = []
-    for epoch in range(n_epochs):
+    input_hor = data_loader.dataset.input_hor
+
+    for epoch in tqdm(range(n_epochs), desc="Epoch"):
+        save_string = f"{save_name}_epoch_{epoch}_lr_{optimizer.param_groups[0]['lr']}_batch_{data_loader.batch_size} _pred_{pred_hor}_input_{input_hor}_num_dates_{len(data_loader)}_h_size_{model.h_size}"
+
         epoch_loss = 0
         batch_num = 0
-        for input_edge_weights, input_node_data, target_edge_weights, target_node_data in tqdm(data_loader):
+        for input_edge_weights, input_node_data, target_edge_weights, target_node_data in data_loader:
             if batch_num==1 and epoch == 1:
                 # prof.step()
                 pass
 
             
-            input_hor = input_node_data.shape[1]
             input_edge_weights = input_edge_weights.to(device)
             input_node_data = input_node_data.to(device)
             target_edge_weights = target_edge_weights.to(device)
@@ -69,29 +75,53 @@ def train(model, data_loader, criterion, optimizer, pred_hor, device, n_epochs =
         #Calculate the average loss per prediction, so per node, per time step
         epoch_loss = epoch_loss/((pred_hor) * len(data_loader) * input_node_data.shape[1])
         losses.append(epoch_loss)
-        print(f"EPOCH: {epoch} ", end="")
-        
-        print(f"$ Loss: { epoch_loss:.3e} ")
-        
-        print(f"Input: {input_node_data[0, :, :5, 0]} ")
-        print(f"$ Output: {output[0, -pred_hor:, :5, 0]}")
-        print(f"$ Target: {target_node_data[0, :, :5, 0]}")
+        if n_plots is not None:
+            if epoch % (int(n_epochs)/n_plots)== 0 or epoch == n_epochs-1:
+                print(f"EPOCH: {epoch} ", end="")
+                print(f"$ Loss: { epoch_loss:.3e} ")
+                print(f"Input: {input_node_data[0, :, :5, 0]} ")
+                print(f"$ Output: {output[0, -pred_hor:, :5, 0]}")
+                print(f"$ Target: {target_node_data[0, :, :5, 0]}")
+                print(f"lr: {optimizer.param_groups[0]['lr']}")
+                print(f"shape of input_node_data: {input_node_data.shape}")
+                print(f"shape of output: {output.shape}")
+                print(f"shape of target_node_data: {target_node_data.shape}")
+                
+                plt.figure()
+                num_plot_nodes = 5
+                colors = plt.cm.jet(np.linspace(0, 1, num_plot_nodes))
+                rand_node_idx = np.random.randint(0, input_node_data.shape[2]-1, num_plot_nodes)
+                for i,node in enumerate(rand_node_idx):
+
+                    plt.plot( input_node_data[0, :, node, 0].cpu().detach().numpy(), label=f"Node {node} Input", color=colors[i])
+                    plt.scatter(np.arange(input_hor, input_hor+pred_hor),
+                                target_node_data[0, :, node, 0].cpu().detach().numpy(), label=f"Node {node} Target", marker="x",
+                                color=colors[i])
+                    plt.plot(output[0, :, node, 0].cpu().detach().numpy(), 
+                            label=f"Node {node} Output", linestyle="--", color=colors[i])
+                plt.legend(loc = "upper left")
+                plt.title(f"Loss{epoch_loss}: save_string ")
+                plt.savefig(f"GraphML\GraphRNN\plots\covid_predictions\plot_{save_string}_{epoch}.png")
+                plt.close()
+            
+        learning_rate_scheduler.step()
+            
     if save_name is not None:
-        save_string = f"{save_name}_epoch_{epoch}_lr_{optimizer.param_groups[0]['lr']}_batch_{data_loader.batch_size} _pred_{pred_hor}_input_{input_hor}_num_dates_{len(data_loader)}_h_size_{model.h_size}"
-        torch.save(model.state_dict(), f"models\model_state_dict_{save_string}.pth")
-        with open(f"losses\losses_{save_string}.json", "w") as f:
+        torch.save(model.state_dict(), f"GraphML/GraphRNN/models/model_state_dict_{save_string}.pth")
+        with open(f"GraphML\GraphRNN\losses\losses_{save_string}.json", "w") as f:
             json.dump(losses, f)
     return losses, parameter_mag, gradients, hidden_states
 
-config = {  "n_epochs": 800,
-            "num_dates": 9,
-            "input_hor": 7,
-            "pred_hor": 1,
-            "h_size": 70,
+config = {  "n_epochs": 1000,
+            "num_dates": 17,
+            "input_hor": 14,
+            "pred_hor": 3,
+            "h_size": 170,
             "batch_size": 5,
-            "lr": 0.0003,
-            "use_neighbors": True,
+            "lr": 0.0008,
             "max_grad_norm": 1,
+            "num_lr_steps": 1,
+            "lr_decay": 1
             
          }
 
@@ -99,8 +129,8 @@ config = {  "n_epochs": 800,
 
 if __name__ == "__main__":
     print("Starting training run...")
-    flow_dataset = "data/daily_county2county_2019_01_01.csv"
-    epi_dataset = "data_epi/epidemiology.csv"
+    flow_dataset = "GraphML/data/daily_county2county_2019_01_01.csv"
+    epi_dataset = "GraphML/data_epi/epidemiology.csv"
     epi_dates = ["2020-06-09", "2020-06-10", "2020-06-11", "2020-06-12", "2020-06-12", "2020-06-13", "2020-06-14", "2020-06-15", "2020-06-16", "2020-06-17", "2020-06-18", "2020-06-19", "2020-06-20", "2020-06-21", "2020-06-22", "2020-06-23", "2020-06-24", "2020-06-25", "2020-06-26", "2020-06-27", "2020-06-28", "2020-06-29", "2020-06-30", "2020-07-01", "2020-07-02", "2020-07-03", "2020-07-04", "2020-07-05", "2020-07-06", "2020-07-07", "2020-07-08", "2020-07-09", "2020-07-10", "2020-07-11", "2020-07-12", "2020-07-13", "2020-07-14", "2020-07-15", "2020-07-16", "2020-07-17", "2020-07-18", "2020-07-19", "2020-07-20", "2020-07-21", "2020-07-22", "2020-07-23", "2020-07-24", "2020-07-25", "2020-07-26", "2020-07-27", "2020-07-28", "2020-07-29", "2020-07-30", "2020-07-31", "2020-08-01", "2020-08-02", "2020-08-03", "2020-08-04", "2020-08-05", "2020-08-06", "2020-08-07", "2020-08-08", "2020-08-09", "2020-08-10", "2020-08-11", "2020-08-12", "2020-08-13", "2020-08-14", "2020-08-15", "2020-08-16", "2020-08-17",
                     "2020-08-18", "2020-08-19", "2020-08-20", "2020-08-21", "2020-08-22", "2020-08-23", "2020-08-24", "2020-08-25", "2020-08-26", "2020-08-27", "2020-08-28", "2020-08-29", "2020-08-30", "2020-08-31", "2020-09-01", "2020-09-02", "2020-09-03", "2020-09-04", "2020-09-05", "2020-09-06", "2020-09-07", "2020-09-08", "2020-09-09", "2020-09-10", "2020-09-11", "2020-09-12", "2020-09-13", "2020-09-14", "2020-09-15", "2020-09-16", "2020-09-17", "2020-09-18", "2020-09-19", "2020-09-20", "2020-09-21", "2020-09-22", "2020-09-23", "2020-09-24", "2020-09-25", "2020-09-26", "2020-09-27", "2020-09-28", "2020-09-29", "2020-09-30", "2020-10-01", "2020-10-02", "2020-10-03", "2020-10-04", "2020-10-05", "2020-10-06", "2020-10-07", "2020-10-08", "2020-10-09", "2020-10-10", "2020-10-11", "2020-10-12", "2020-10-13", "2020-10-14", "2020-10-15", "2020-10-16", "2020-10-17", "2020-10-18", 
                     "2020-10-19", "2020-10-20", "2020-10-21", "2020-10-22", "2020-10-23", "2020-10-24", "2020-10-25", "2020-10-26", "2020-10-27", "2020-10-28", "2020-10-29", "2020-10-30", "2020-10-31", "2020-11-01", "2020-11-02", "2020-11-03", "2020-11-04", "2020-11-05", "2020-11-06", "2020-11-07", "2020-11-08", "2020-11-09", "2020-11-10", "2020-11-11", "2020-11-12", "2020-11-13", "2020-11-14", "2020-11-15", "2020-11-16", "2020-11-17", "2020-11-18", "2020-11-19", "2020-11-20", "2020-11-21", "2020-11-22", "2020-11-23", "2020-11-24", "2020-11-25", "2020-11-26", "2020-11-27", "2020-11-28", "2020-11-29", "2020-11-30", "2020-12-01", "2020-12-02", "2020-12-03", "2020-12-04", "2020-12-05", "2020-12-06", "2020-12-07", "2020-12-08", "2020-12-09", "2020-12-10", "2020-12-11", "2020-12-12", "2020-12-13", "2020-12-14", "2020-12-15", "2020-12-16", "2020-12-17", "2020-12-18", "2020-12-19",
@@ -123,7 +153,7 @@ if __name__ == "__main__":
         data_set.visualize(0, num_nodes=5, num_edges=5)
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+    print(f"Device: {device}")
     # data_sampler = GraphRNN_DataSampler(data_set, input_hor=input_hor, pred_hor=pred_hor)
     data_loader = torch.utils.data.DataLoader(data_set, batch_size=config["batch_size"], pin_memory=True, num_workers=0, shuffle=True)
     
@@ -135,10 +165,11 @@ if __name__ == "__main__":
     #neighbor_aggregator = Neighbor_Attention_block(n_nodes = data_set.n_nodes, h_size=config["h_size"],
                                      #          f_out_size=config["h_size"],fixed_edge_weights=fixed_edge_weights,
                                       #         device=device, dtype=torch.float32)
-    neighbor_aggregator=Neighbor_Attention_block(1,1,data_set.n_nodes,config["h_size"], config["h_size"],edge_weights=fixed_edge_weights, device=device)
-    #neighbor_aggregator = Neighbor_Aggregation_Simple(n_nodes = data_set.n_nodes, h_size=config["h_size"],
-                                                 #f_out_size=config["h_size"],fixed_edge_weights=fixed_edge_weights,
-                                                 #device=device, dtype=torch.float32)
+    neighbor_aggregator=Neighbor_Attention_block(1,6,data_set.n_nodes,config["h_size"], config["h_size"],edge_weights=fixed_edge_weights, device=device)
+   # neighbor_aggregator = Neighbor_Aggregation_Simple(n_nodes = data_set.n_nodes, h_size=config["h_size"],
+    #                                             f_out_size=config["h_size"],fixed_edge_weights=fixed_edge_weights,
+     #                                            device=device, dtype=torch.float32)
+    
     model  = Graph_RNN(n_nodes = data_set.n_nodes,
                        n_features = data_set.n_features,
                        h_size = config["h_size"],
@@ -153,7 +184,8 @@ if __name__ == "__main__":
 
     criterion = torch.nn.MSELoss().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
-    learning_rate_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
+    
+    learning_rate_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=config["n_epochs"]/config["num_lr_steps"], gamma=config["lr_decay"])
 
     torch.autograd.set_detect_anomaly(False)
 
@@ -187,12 +219,15 @@ if __name__ == "__main__":
         else:
             print(f"No log files found in {log_dir}")
     else:
-        losses, parameter_mag, gradients, hidden_state_mag = train(model, data_loader,
-                        criterion, optimizer,
-                        config["pred_hor"], device, 
+        losses, parameter_mag, gradients, hidden_state_mag = train(model = model , data_loader = data_loader, criterion=
+                        criterion, optimizer=optimizer,pred_hor=
+                        config["pred_hor"], device=device, 
+                        learning_rate_scheduler=learning_rate_scheduler,
                         n_epochs=config["n_epochs"],
                         max_grad_norm=config["max_grad_norm"],
-                        save_name="test")
+                        save_name="test",
+                        n_plots=5
+                        )
 
 
     
@@ -201,7 +236,9 @@ if __name__ == "__main__":
     plt.xlabel("Iteration")
     plt.ylabel("Loss")
     plt.yscale("log")
-    plt.savefig("losses.png")
+    plt.savefig("Plots/losses_1_6.png")
+    print(f"final loss {losses[-1]}")
+    print(f"minimum loss {np.min(losses)} at epoch {np.argmin(losses)}")
     plt.show()
     
     print("Plotting parameter magnitudes...")
@@ -214,7 +251,6 @@ if __name__ == "__main__":
     plt.ylabel("Parameter Magnitude")
     # plt.yscale("log")
     plt.legend()
-    plt.savefig("params_mag.png")
     plt.show()
     
     plt.figure()
@@ -225,7 +261,6 @@ if __name__ == "__main__":
     plt.xlabel("Iteration")
     plt.ylabel("Gradient Magnitude")
     plt.legend()
-    plt.savefig("grad_mag.png")
     plt.show()
     print("Finished training run.")
     
