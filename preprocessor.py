@@ -34,6 +34,7 @@ class Preprocessor:
 
         # load in data
         self.epidemiology = pd.read_csv(epi_dataset, keep_default_na=False, na_values=[""])
+        self.epidemiology = self.epidemiology[self.epidemiology['date'].isin(epi_dates)]
         self.flow = pd.read_csv(flow_dataset)
 
         # preprocess
@@ -61,6 +62,7 @@ class Preprocessor:
 
     
     def get_epi_dataset(self):
+        print("The current epi dates are:", epi_dates)
         return self.epidemiology_timesteps
 
     def normalize(self, column):
