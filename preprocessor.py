@@ -45,7 +45,7 @@ class Preprocessor:
         # Ensure nodes exist in all time steps
         self.unify_existance_geoids()
     
-    def unify_existance_geoids()
+    def unify_existance_geoids(self):
         # Ensure nodes exist in all time steps
         all_epidemiology_geoids = reduce(np.intersect1d, [timestep['geoid_o'].unique() for timestep in self.epidemiology_timesteps])
         all_flow_geoids = np.union1d(self.flow['geoid_o'].unique(), self.flow['geoid_d'].unique())
