@@ -5,3 +5,4 @@ data_epi/epidemiology.csv
 *log*ClassicalModels/testing_data.pkl
 ClassicalModels/training_data.pkl
 bfg-1.13.0.jar
+ClassicalModels/testing_data.pkl
