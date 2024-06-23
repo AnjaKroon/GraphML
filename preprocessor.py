@@ -43,6 +43,10 @@ class Preprocessor:
         self.process_population_flow()
 
         # Ensure nodes exist in all time steps
+        self.unify_existance_geoids()
+    
+    def unify_existance_geoids()
+        # Ensure nodes exist in all time steps
         all_epidemiology_geoids = reduce(np.intersect1d, [timestep['geoid_o'].unique() for timestep in self.epidemiology_timesteps])
         all_flow_geoids = np.union1d(self.flow['geoid_o'].unique(), self.flow['geoid_d'].unique())
         intersection = np.intersect1d(all_epidemiology_geoids, all_flow_geoids)
@@ -55,7 +59,6 @@ class Preprocessor:
     def set_timestep_offset_epi_dataset(self, from_timestep=0):
         timesteps = []
         for i in range(self.timegraph_size):
-            print(i)
             # update epi geoid
             self.epidemiology_timesteps[i]['geoid_o'] = (self.epidemiology_timesteps[i]['geoid_o'] % self.geoid_offset) + self.geoid_offset * (from_timestep + i)
         return self
@@ -235,6 +238,8 @@ if __name__ == "__main__":
     ans = preprocessor.set_timestep_offset_epi_dataset(0).get_epi_dataset()
     print(len(ans))
 
+    print(preprocessor.set_timestep_offset_epi_dataset(from_timestep=8).get_epi_dataset())    
+    
     graph_df = preprocessor.combined_manual_kronecker()
     kron_flow_df, signals_df = preprocessor.disjoint_manual_kronecker()
 
