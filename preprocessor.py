@@ -34,6 +34,7 @@ class Preprocessor:
 
         # load in data
         self.epidemiology = pd.read_csv(epi_dataset, keep_default_na=False, na_values=[""])
+        # self.epidemiology = self.epidemiology[self.epidemiology['date'].isin(epi_dates)]
         self.flow = pd.read_csv(flow_dataset)
 
         # preprocess
@@ -51,14 +52,17 @@ class Preprocessor:
         
         self.flow = self.flow[self.flow['geoid_o'].isin(intersection) & self.flow['geoid_d'].isin(intersection)]
     
-    def set_timestep_offset_epi_dataset(from_timestep=0):
+    def set_timestep_offset_epi_dataset(self, from_timestep=0):
         timesteps = []
-        for i in range(from_timestep, self.timegraph_size):
+        for i in range(self.timegraph_size):
+            print(i)
             # update epi geoid
-            self.epidemiology_timesteps[i]['geoid_o'] = (self.epidemiology_timesteps[i]['geoid_o'] % self.geoid_offset) + self.geoid_offset * i
+            self.epidemiology_timesteps[i]['geoid_o'] = (self.epidemiology_timesteps[i]['geoid_o'] % self.geoid_offset) + self.geoid_offset * (from_timestep + i)
         return self
+
     
     def get_epi_dataset(self):
+        print("The current epi dates are:", epi_dates)
         return self.epidemiology_timesteps
 
     def normalize(self, column):
@@ -228,6 +232,8 @@ if __name__ == "__main__":
     epi_dataset = "data_epi/epidemiology.csv"
     epi_dates = ["2020-06-09", "2020-06-10"]
     preprocessor = Preprocessor(flow_dataset, epi_dataset, epi_dates, plottable=True)
+    ans = preprocessor.set_timestep_offset_epi_dataset(0).get_epi_dataset()
+    print(len(ans))
 
     graph_df = preprocessor.combined_manual_kronecker()
     kron_flow_df, signals_df = preprocessor.disjoint_manual_kronecker()
