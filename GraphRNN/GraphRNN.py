@@ -56,11 +56,9 @@ class Graph_RNN(torch.nn.Module):
         # torch.nn.init.xavier_normal_(self.E2)
 
         self.H2X_out_MLP = torch.nn.Sequential(
-            torch.nn.Linear(h_size, 4*h_size),
+            torch.nn.Linear(h_size, 2*h_size),
             torch.nn.ReLU(),
-            torch.nn.Linear(4*h_size, h_size),
-            torch.nn.ReLU(),
-            torch.nn.Linear(h_size, n_features)
+            torch.nn.Linear(2*h_size, n_features)
         )
         if self.fixed_edge_weights is not None:
             self.node_idx = self.fixed_edge_weights[:, 0].unique()

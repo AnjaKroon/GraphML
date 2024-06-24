@@ -69,7 +69,7 @@ def train(model, train_loader, val_loader, criterion, optimizer, pred_hor, devic
                     gradients["post_limit"][param_name].append(0)
 
             optimizer.step()
-            train_loss += loss.item()/((pred_hor) * len(train_loader) * input_node_data.shape[0])
+            train_loss += loss.item()/(len(train_loader))
             batch_num += 1
         
         if epoch % (n_epochs/10) == 0:
@@ -80,14 +80,16 @@ def train(model, train_loader, val_loader, criterion, optimizer, pred_hor, devic
                 target_edge_weights = target_edge_weights.to(device)
                 target_node_data = target_node_data.to(device)
                 output = model(x_in=input_node_data, pred_hor = pred_hor)
-                val_loss += criterion(input_node_data, output, target_node_data)/((pred_hor) * len(val_loader) * input_node_data.shape[0])
+                
+                val_loss += criterion(input_node_data, output, target_node_data)/(len(val_loader))
+
             print(f"EPOCH: {epoch} ", end="")
             print(f"$ Train Loss: { train_loss:.3e} ", end="")
             print(f"$ Validation Loss: { val_loss:.3e} ")
         #Calculate the average loss per prediction, so per node, per time step
  
         train_losses.append(train_loss)
-        val_losses.append(val_loss)
+        val_losses.append(int(val_loss))
         if n_plots is not None:
             if epoch % (int(n_epochs)/n_plots)== 0 or epoch == n_epochs-1:
 
@@ -126,11 +128,11 @@ def train(model, train_loader, val_loader, criterion, optimizer, pred_hor, devic
             json.dump(val_losses, f)
     return train_losses, parameter_mag, gradients, hidden_states
 
-config = {  "n_epochs": 1800,
-            "num_train_dates": 9,
-            "num_validation_dates": 9,
+config = {  "n_epochs": 1000,
+            "num_train_dates": 20,
+            "num_validation_dates": 13,
             "input_hor": 7,
-            "pred_hor": 1,
+            "pred_hor": 3,
             "h_size": 70,
             "batch_size": 50,
             "lr": 0.0046,
