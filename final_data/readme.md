@@ -54,6 +54,9 @@ matter: consists of 'cumulative_confirmed',
 
 confirmed: 'new_confirmed' (or its normalized version)
 
+locations_data_unique: locations_data_unique[i] corresponds to population[:, i, :](the ith node).
+                    
+
                    
 
       
