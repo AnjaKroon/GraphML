@@ -75,6 +75,7 @@ def train(model, train_loader, val_loader, criterion, optimizer, pred_hor, devic
         if epoch % (n_epochs/10) == 0:
             val_loss = 0
             for input_edge_weights, input_node_data, target_edge_weights, target_node_data in val_loader:
+                
                 input_edge_weights = input_edge_weights.to(device)
                 input_node_data = input_node_data.to(device)
                 target_edge_weights = target_edge_weights.to(device)
@@ -85,22 +86,17 @@ def train(model, train_loader, val_loader, criterion, optimizer, pred_hor, devic
 
             print(f"EPOCH: {epoch} ", end="")
             print(f"$ Train Loss: { train_loss:.3e} ", end="")
-            print(f"$ Validation Loss: { val_loss:.3e} ")
+            print(f"$ Validation Loss: { val_loss} ")
         #Calculate the average loss per prediction, so per node, per time step
  
         train_losses.append(train_loss)
-        val_losses.append(int(val_loss))
+        val_losses.append(val_loss.detach().cpu().tolist())
         if n_plots is not None:
             if epoch % (int(n_epochs)/n_plots)== 0 or epoch == n_epochs-1:
-
-                print(f"Input: {input_node_data[0, :, :5, 0]} ")
                 print(f"$ Output: {output[0, -pred_hor:, :5, 0]}")
                 print(f"$ Target: {target_node_data[0, :, :5, 0]}")
-                print(f"lr: {optimizer.param_groups[0]['lr']}")
-                print(f"shape of input_node_data: {input_node_data.shape}")
-                print(f"shape of output: {output.shape}")
-                print(f"shape of target_node_data: {target_node_data.shape}")
-                
+
+
                 plt.figure()
                 num_plot_nodes = 5
                 colors = plt.cm.jet(np.linspace(0, 1, num_plot_nodes))
@@ -126,25 +122,31 @@ def train(model, train_loader, val_loader, criterion, optimizer, pred_hor, devic
             json.dump(train_losses, f)
         with open(f"GraphRNN\losses\ val_losses_{save_string}.json", "w") as f:
             json.dump(val_losses, f)
-    return train_losses, parameter_mag, gradients, hidden_states
+    return train_losses, val_losses, parameter_mag, gradients, hidden_states
 
-config = {  "n_epochs": 1000,
-            "num_train_dates": 20,
-            "num_validation_dates": 13,
+config = {  "n_epochs": 130,
+            "num_train_dates": 60,
+            "num_validation_dates": 12,
             "input_hor": 7,
-            "pred_hor": 3,
+            "pred_hor": 1,
             "h_size": 70,
-            "batch_size": 50,
-            "lr": 0.0046,
+            "batch_size": 10,
+            "lr": 0.000066,
             "max_grad_norm": 1,
-            "num_lr_steps": 4,
-            "lr_decay": 0.5
+            "num_lr_steps": 5,
+            "lr_decay": 0.5,
+            "normalize_edge_weights": False
             
          }
 
 
 
 if __name__ == "__main__":
+    assert torch.cuda.is_available(), "CUDA not available"
+    assert config["input_hor"] + config["pred_hor"] <= config["num_train_dates"], "Input and prediction horizon too large for number of training dates"
+    assert config["input_hor"] + config["pred_hor"] <= config["num_validation_dates"], "Input and prediction horizon too large for number of validation dates"
+    
+    
     print("Starting training run...")
     flow_dataset = "data/daily_county2county_2019_01_01.csv"
     epi_dataset = "data_epi/epidemiology.csv"
@@ -155,8 +157,8 @@ if __name__ == "__main__":
                  ]
 
     epi_dates = epi_dates[:config["num_train_dates"] + config["num_validation_dates"]]
-
-    print(config["num_train_dates"] + config["num_validation_dates"])
+    
+    
     
     print("Loading data...")
     data_set = GraphRNN_dataset(epi_dates = epi_dates,
@@ -164,8 +166,9 @@ if __name__ == "__main__":
                                 epi_dataset = epi_dataset,
                                 input_hor=config["input_hor"],
                                 pred_hor=config["pred_hor"],
-                                fake_data=False)
-    print(len(data_set))
+                                fake_data=False,
+                                normalize_edge_weights=config["normalize_edge_weights"])
+
     train_data_set = torch.utils.data.Subset(data_set, range(config["num_train_dates"]+1-config["input_hor"]-config["pred_hor"]))
     val_data_set = torch.utils.data.Subset(data_set,
                                            range(config["num_train_dates"],
@@ -239,10 +242,15 @@ if __name__ == "__main__":
             with_stack=True
         ) as prof:
             print("Starting training with profiling...")
-            losses, parameter_mag = train(model, data_loader,
-                                    criterion, optimizer,
-                                    config["pred_hor"], device, n_epochs=config["n_epochs"],
-                                    save_name="model_state_dict.pth")
+            train_losses, val_losses, parameter_mag, gradients, hidden_state_mag = train(model = model , train_loader = train_loader, val_loader = val_loader, criterion=
+                        criterion, optimizer=optimizer,pred_hor=
+                        config["pred_hor"], device=device, 
+                        learning_rate_scheduler=learning_rate_scheduler,
+                        n_epochs=config["n_epochs"],
+                        max_grad_norm=config["max_grad_norm"],
+                        save_name="test",
+                        n_plots=5
+                        )
             print("Finished training with profiling.")
             # Verify that the log directory is populated
         if os.listdir(log_dir):
@@ -250,7 +258,7 @@ if __name__ == "__main__":
         else:
             print(f"No log files found in {log_dir}")
     else:
-        losses, parameter_mag, gradients, hidden_state_mag = train(model = model , train_loader = train_loader, val_loader = val_loader, criterion=
+        train_losses, val_losses, parameter_mag, gradients, hidden_state_mag = train(model = model , train_loader = train_loader, val_loader = val_loader, criterion=
                         criterion, optimizer=optimizer,pred_hor=
                         config["pred_hor"], device=device, 
                         learning_rate_scheduler=learning_rate_scheduler,
@@ -263,7 +271,8 @@ if __name__ == "__main__":
 
     
     print("Plotting losses...")
-    plt.plot(losses)
+    plt.plot(train_losses, label="Train Loss")
+    plt.plot(val_losses, label="Validation Loss")
     plt.xlabel("Iteration")
     plt.ylabel("Loss")
     plt.yscale("log")

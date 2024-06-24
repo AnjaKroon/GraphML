@@ -10,11 +10,12 @@ from preprocessor import Preprocessor
 import matplotlib.pyplot as plt
 
 class GraphRNN_dataset(torch.utils.data.Dataset):
-    def __init__(self, epi_dates, flow_dataset="data/daily_county2county_2019_01_01.csv", epi_dataset="data_epi/epidemiology.csv", input_hor=4, pred_hor=1, fake_data=False):
+    def __init__(self, epi_dates, flow_dataset="data/daily_county2county_2019_01_01.csv", 
+                 epi_dataset="data_epi/epidemiology.csv", input_hor=4, pred_hor=1, fake_data=False, normalize_edge_weights=True):
         super(GraphRNN_dataset, self).__init__()
         self.input_hor = input_hor
         self.pred_hor = pred_hor
-        
+        self.normalize_edge_weights = normalize_edge_weights
         if fake_data:
             self.generate_fake_data()
             return
@@ -50,9 +51,13 @@ class GraphRNN_dataset(torch.utils.data.Dataset):
         self.edge_weights =  self.calc_edge_weights(flow_df)
         self.node_data = self.calc_node_data(signals_df)
         
-        mean_edge_weight = self.edge_weights[:, :, 2].mean().item()
-        std_dev_edge_weight = self.edge_weights[:, :, 2].std().item()
-        self.edge_weights[:, :, 2] = (self.edge_weights[:, :, 2] - mean_edge_weight) / std_dev_edge_weight
+        if normalize_edge_weights:
+            mean_edge_weight = self.edge_weights[:, :, 2].mean().item()
+            std_dev_edge_weight = self.edge_weights[:, :, 2].std().item()
+            self.edge_weights[:, :, 2] = (self.edge_weights[:, :, 2] - mean_edge_weight) / std_dev_edge_weight
+        else:
+            max_edge_weight = self.edge_weights[:, :, 2].max().item()
+            self.edge_weights[:, :, 2] = self.edge_weights[:, :, 2] / max_edge_weight
 
         for feature in range(self.n_features):
             mean_node_data = self.node_data[:, :, feature].mean().item()
