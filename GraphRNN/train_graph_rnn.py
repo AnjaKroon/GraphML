@@ -113,15 +113,15 @@ def train(model, data_loader, criterion, optimizer, pred_hor, device,
     return losses, parameter_mag, gradients, hidden_states
 
 config = {  "n_epochs": 800,
-            "num_dates": 29,
-            "input_hor": 24,
-            "pred_hor": 5,
+            "num_dates": 34,
+            "input_hor": 7,
+            "pred_hor": 1,
             "h_size": 70,
             "batch_size": 5,
-            "lr": 0.0004,
+            "lr": 0.0006,
             "max_grad_norm": 1,
-            "num_lr_steps": 1,
-            "lr_decay": 1
+            "num_lr_steps": 4,
+            "lr_decay": 0.5
             
          }
 
