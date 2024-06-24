@@ -257,7 +257,16 @@ if __name__ == '__main__':
     # data_sampler = GraphRNN_DataSampler(data_set, input_hor=input_hor, pred_hor=pred_hor)
     # data_loader = torch.utils.data.DataLoader(data_set, batch_size=3, sampler=data_sampler, num_workers=3)
     data_loader = torch.utils.data.DataLoader(data_set, batch_size=2, num_workers=0)
+    
+    num_nans = 0
+    for input_edge_weights, input_node_data, target_edge_weights, target_node_data in data_loader:
+        for batch in range(input_node_data.shape[0]):
+            for time in range(input_node_data.shape[1]):
+                for node in range(input_node_data.shape[2]):
+                    if torch.isnan(input_node_data[batch, time, node, 0]).item():
+                        num_nans += 1
 
+    print(f"Number of NaNs in the dataset: {num_nans}")
     
     for i in range(10):
         print(f"Epoch: {i}")

@@ -55,11 +55,9 @@ class Graph_RNN(torch.nn.Module):
         # torch.nn.init.xavier_normal_(self.E2)
 
         self.H2X_out_MLP = torch.nn.Sequential(
-            torch.nn.Linear(h_size, h_size),
+            torch.nn.Linear(h_size, 4*h_size),
             torch.nn.ReLU(),
-            torch.nn.Linear(h_size, h_size),
-            torch.nn.ReLU(),
-            torch.nn.Linear(h_size, h_size),
+            torch.nn.Linear(4*h_size, h_size),
             torch.nn.ReLU(),
             torch.nn.Linear(h_size, n_features)
         )
