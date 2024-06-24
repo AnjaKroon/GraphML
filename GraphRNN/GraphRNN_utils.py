@@ -219,24 +219,24 @@ class GraphRNN_dataset(torch.utils.data.Dataset):
                     self.node_data[time, node, 0] = self.node_data[time-1, node, 0] + 0.1*(torch.rand((1,)).item() - 0.5)
         return
 
-class GraphRNN_DataSampler(torch.utils.data.Sampler):
-    def __init__(self, dataset, input_hor, pred_hor):
-        self.dataset = dataset
-        self.input_hor = input_hor
-        self.pred_hor = pred_hor
-        self.new_seq_start_idx()
-        super(GraphRNN_DataSampler, self).__init__()
+# class GraphRNN_DataSampler(torch.utils.data.Sampler):
+#     def __init__(self, dataset, input_hor, pred_hor):
+#         self.dataset = dataset
+#         self.input_hor = input_hor
+#         self.pred_hor = pred_hor
+#         self.new_seq_start_idx()
+#         super(GraphRNN_DataSampler, self).__init__()
 
-    def new_seq_start_idx(self):
-        start_idx = torch.randint(0, (self.input_hor + self.pred_hor), (1,)).item()
-        self.start_idx_list = [start_idx + (self.input_hor + self.pred_hor) * i for i in range(int(np.floor((self.dataset.n_time - start_idx) / (self.input_hor + self.pred_hor))))]
+#     def new_seq_start_idx(self):
+#         start_idx = torch.randint(0, (self.input_hor + self.pred_hor), (1,)).item()
+#         self.start_idx_list = [start_idx + (self.input_hor + self.pred_hor) * i for i in range(int(np.floor((self.dataset.n_time - start_idx) / (self.input_hor + self.pred_hor))))]
     
-    def __len__(self):
-        return len(self.start_idx_list)
+#     def __len__(self):
+#         return len(self.start_idx_list)
      
-    def __iter__(self):
-        self.new_seq_start_idx()
-        return iter(self.start_idx_list)
+#     def __iter__(self):
+#         self.new_seq_start_idx()
+#         return iter(self.start_idx_list)
 
 
 if __name__ == '__main__':
