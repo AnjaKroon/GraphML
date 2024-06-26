@@ -86,6 +86,7 @@ if __name__ == "__main__":
     print("Data loaded.")
     
     input_edge_weights, input_node_data, target_edge_weights, target_node_data = next(iter(train_loader))
+    #TODO take mean of edge weights
     fixed_edge_weights = input_edge_weights[0,0,:,:]
     
 
