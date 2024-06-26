@@ -3,7 +3,8 @@ import torch.sparse as sparse
 from Neighbor_Agregation import Neighbor_Aggregation
 from tqdm import tqdm
 class Graph_RNN(torch.nn.Module):
-    def __init__(self, n_nodes, n_features, h_size, f_out_size, input_hor, fixed_edge_weights=None , device='cpu', dtype=torch.float32, neighbor_aggregator=None):
+    def __init__(self, n_nodes, n_features, h_size, f_out_size, input_hor, fixed_edge_weights=None , 
+                 device='cpu', dtype=torch.float32, neighbor_aggregator=None):
         """ Initialize the Graph RNN
         Args:
             n_nodes (int): number of nodes in the graph
