@@ -14,7 +14,7 @@ from Neighbor_Agregation import Neighbor_Aggregation
 
 from train import train
 
-config = {  "n_epochs": 10,
+config = {  "n_epochs": 1000,
             "num_train_dates": 55,
             "num_validation_dates": 24,
             "input_hor": 14,
