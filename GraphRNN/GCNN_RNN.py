@@ -13,7 +13,10 @@ class GCNN(torch.nn.Module):
         self.graph_convolution = pyg.nn.GCNConv(n_features, n_output_features)
         
     def forward(self, x, edge_idx, edge_weights=None):
-        x = self.graph_convolution(x, edge_index=edge_idx, edge_weight= edge_weights)
+        x_out = torch.zeros(x.shape[0], self.n_nodes, self.n_output_features, device= self.device, dtype= self.dtype)
+        
+        for i in range(x.shape[0]):
+            x_out[i, :, :] = self.graph_convolution(x[i, :, :], edge_idx[i, :, :], edge_weights[i, :])
         return x    
 
 class GCNN_RNN(torch.nn.Module):
