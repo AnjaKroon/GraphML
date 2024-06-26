@@ -5,21 +5,22 @@ import torch
 import pandas as pd
 from tqdm import tqdm
 from GraphRNN_utils import GraphRNN_dataset
-from GraphRNN import Graph_RNN, Neighbor_Aggregation
+from GCNN_RNN import GCNN_RNN, GCNN
 import matplotlib.pyplot as plt
 import json
 import torch.profiler
 import numpy as np
-from Neighbor_Agregation import Neighbor_Aggregation
+
 
 from train import train
 
 config = {  "n_epochs": 1000,
-            "num_train_dates": 55,
-            "num_validation_dates": 24,
+            "num_train_dates": 16,
+            "num_validation_dates": 16,
             "input_hor": 14,
-            "pred_hor": 7,
+            "pred_hor": 1,
             "h_size": 70,
+            "n_GCNN_out_features": 70,
             "batch_size": 3,
             "lr": 0.000009666,
             "max_grad_norm": 1,
@@ -89,19 +90,14 @@ if __name__ == "__main__":
     fixed_edge_weights = input_edge_weights[0,0,:,:]
     
 
-    neighbor_aggregator = Neighbor_Aggregation(n_nodes = data_set.n_nodes, h_size=config["h_size"],
-                                               f_out_size=config["h_size"],fixed_edge_weights=fixed_edge_weights,
-                                               device=device, dtype=torch.float32)
-    
-    model  = Graph_RNN(n_nodes = data_set.n_nodes,
+    model  = GCNN_RNN(n_nodes = data_set.n_nodes,
                        n_features = data_set.n_features,
+                       n_out_features=config["n_GCNN_out_features"],
                        h_size = config["h_size"],
-                       f_out_size =config["h_size"],
                        input_hor = config["input_hor"],
                        fixed_edge_weights = fixed_edge_weights,
                        device=device,
                        dtype=torch.float32,
-                       neighbor_aggregator=neighbor_aggregator
                        )
     
 

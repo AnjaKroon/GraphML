@@ -3,7 +3,8 @@ import torch.sparse as sparse
 from Neighbor_Agregation import Neighbor_Aggregation
 from tqdm import tqdm
 class Graph_RNN(torch.nn.Module):
-    def __init__(self, n_nodes, n_features, h_size, f_out_size, fixed_edge_weights=None , device='cpu', dtype=torch.float32, neighbor_aggregator=None):
+    def __init__(self, n_nodes, n_features, h_size, f_out_size, input_hor, fixed_edge_weights=None , 
+                 device='cpu', dtype=torch.float32, neighbor_aggregator=None):
         """ Initialize the Graph RNN
         Args:
             n_nodes (int): number of nodes in the graph
@@ -28,6 +29,7 @@ class Graph_RNN(torch.nn.Module):
         self.n_features = n_features
         self.h_size = h_size
         self.f_out_size = f_out_size
+        self.input_hor = input_hor
         print(f"n_nodes: {n_nodes}, n_features: {n_features}, h_size: {h_size}, f_out_size: {f_out_size}")
         
         self.init_mag = 0.01
@@ -55,13 +57,9 @@ class Graph_RNN(torch.nn.Module):
         # torch.nn.init.xavier_normal_(self.E2)
 
         self.H2X_out_MLP = torch.nn.Sequential(
-            torch.nn.Linear(h_size, h_size),
+            torch.nn.Linear(h_size, 2*h_size),
             torch.nn.ReLU(),
-            torch.nn.Linear(h_size, h_size),
-            torch.nn.ReLU(),
-            torch.nn.Linear(h_size, h_size),
-            torch.nn.ReLU(),
-            torch.nn.Linear(h_size, n_features)
+            torch.nn.Linear(2*h_size, n_features)
         )
         if self.fixed_edge_weights is not None:
             self.node_idx = self.fixed_edge_weights[:, 0].unique()
