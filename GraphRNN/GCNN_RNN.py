@@ -1,5 +1,7 @@
 import torch
 import torch_geometric as pyg
+import functorch
+
 class GCNN(torch.nn.Module):
     def __init__(self, n_nodes, n_features, n_output_features, device, dtype, fixed_edge_weights) -> None:
         super(GCNN, self).__init__()
@@ -15,9 +17,9 @@ class GCNN(torch.nn.Module):
     def forward(self, x, edge_idx, edge_weights=None):
         x_out = torch.zeros(x.shape[0], self.n_nodes, self.n_output_features, device= self.device, dtype= self.dtype)
         
-        for i in range(x.shape[0]):
+        for i in range(x.shape[0]):            
             x_out[i, :, :] = self.graph_convolution(x[i, :, :], edge_idx[i, :, :], edge_weights[i, :])
-        return x    
+        return x_out
 
 class GCNN_RNN(torch.nn.Module):
     def __init__(self, n_nodes, n_features, n_out_features, h_size, input_hor, device, dtype, fixed_edge_weights=None):
@@ -36,8 +38,10 @@ class GCNN_RNN(torch.nn.Module):
         self.GCNN = GCNN(n_nodes= n_nodes, n_features= n_features, 
                          n_output_features= n_out_features, device= device, 
                          dtype= dtype, fixed_edge_weights= fixed_edge_weights)
+        self.GCNN.to(device)
         
-        self.RNN = torch.nn.RNN(n_out_features, h_size)
+        self.RNN = torch.nn.RNN(n_out_features, h_size, device=device)
+        self.RNN.to(device)
         
     def forward(self, x_in, edge_weights=None, pred_hor = 1):
         if edge_weights is not None:
@@ -47,19 +51,30 @@ class GCNN_RNN(torch.nn.Module):
         batch_size = x_in.shape[0]
         
         x_in = x_in.view(-1, self.n_nodes, self.n_features)
+        x_in.to(self.device)
         
         fixed_edge_weights = self.fixed_edge_weights.transpose(0, 1)
         
         dup_fixed_edge_weights = fixed_edge_weights.unsqueeze(0).expand(batch_size*self.input_hor, -1, -1)
-        print("dup_fixed_edge_weights.shape)" + str(dup_fixed_edge_weights.shape))
-        dup_fixed_edge_idx = dup_fixed_edge_weights[:, :2, :]
+        dup_fixed_edge_idx = dup_fixed_edge_weights[:, :2, :].type(torch.int32)
         dup_fixed_edge_weights = dup_fixed_edge_weights[:, 2, :]
-        print("dup_fixed_edge_idx.shape)" + str(dup_fixed_edge_idx.shape))
-        print("dup_fixed_edge_weights.shape)" + str(dup_fixed_edge_weights.shape))
+        dup_fixed_edge_idx.to(self.device)
+        dup_fixed_edge_weights.to(self.device)
         
+        # Extracting node IDs and creating a mapping from IDs to indices
+        unique_id = dup_fixed_edge_idx[:,:,:].unique()
+        map_id = {j.item(): i for i, j in enumerate(unique_id)}
 
+        # Processing edge Tensor: replacing node IDs with corresponding indices
+        for i, batch in enumerate(dup_fixed_edge_idx):
+            for j, _ in enumerate(batch[0]):
+                dup_fixed_edge_idx[i, 0, j] = map_id[dup_fixed_edge_idx[i, 0, j].item()]
+                dup_fixed_edge_idx[i, 1, j] = map_id[dup_fixed_edge_idx[i, 1, j].item()]
         
         x = self.GCNN(x_in, edge_idx = dup_fixed_edge_idx, edge_weights= dup_fixed_edge_weights)
+        print(x.shape)
+        print(x)
+        print(batch_size, self.input_hor, self.n_nodes, self.n_out_features)
         x = x.view(batch_size, self.input_hor, self.n_nodes, self.n_out_features)
         
         for i in range(self.input_hor):
