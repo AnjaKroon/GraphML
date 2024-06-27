@@ -32,7 +32,7 @@ class Split_graph_data_module(pl.LightningDataModule):
         self.val_data_set = Subset(self.data_set, val_indices)
 
     def train_dataloader(self):
-        return DataLoader(self.train_data_set, batch_size=self.config["batch_size"], pin_memory=True, shuffle=True, num_workers=19, persistent_workers=True)
+        return DataLoader(self.train_data_set, batch_size=self.config["batch_size"], pin_memory=True, shuffle=True, num_workers=5, persistent_workers=True)
 
     def val_dataloader(self):
-        return DataLoader(self.val_data_set, batch_size=self.config["batch_size"], pin_memory=True, shuffle=False, num_workers=19)
+        return DataLoader(self.val_data_set, batch_size=self.config["batch_size"], pin_memory=True, shuffle=False, num_workers=2, persistent_workers=True)

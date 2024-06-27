@@ -3,20 +3,21 @@ import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.callbacks import EarlyStopping
 from src.lightning_modules.model_modules.GraphRNN_module import GraphRNNModule
 from src.lightning_modules.data_modules.Split_graph_data_module import Split_graph_data_module
 
 
 def objective(trial):
     config = {
-        "n_epochs": 100,
+        "n_epochs": 1000,
         "num_train_dates": 10,
         "num_validation_dates": 10,
         "input_hor": 7,
         "pred_hor": 1,
         "h_size": trial.suggest_int("h_size", 32, 128),
         "batch_size": trial.suggest_int("batch_size", 1, 8),
-        "lr": trial.suggest_loguniform("lr", 1e-6, 1e-3),
+        "lr": trial.suggest_float("lr", 1e-6, 1e-3, log=True),
         "max_grad_norm": 1,
         "num_lr_steps": 6,
         "lr_decay": 0.5,
@@ -42,10 +43,11 @@ def objective(trial):
     
     logger = TensorBoardLogger("tb_logs", name="my_model")
     checkpoint_callback = ModelCheckpoint(monitor="val_loss")
-    
+    early_stopping_callback = EarlyStopping(monitor="val_loss", patience=5, min_delta= 4e-3,  mode='min', verbose=True)
+
     trainer = pl.Trainer(
         logger=logger,
-        callbacks=[checkpoint_callback],
+        callbacks=[checkpoint_callback, early_stopping_callback],
         max_epochs=config["n_epochs"],
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices=1 if torch.cuda.is_available() else None,
@@ -58,7 +60,7 @@ def objective(trial):
 
 if __name__ == "__main__":
     study = optuna.create_study(direction="minimize", study_name="GraphRNN",
-                                storage="sqlite:///db.sqlite3")
+                                storage="sqlite:///db.sqlite3", load_if_exists=True)
     study.optimize(objective, n_trials=100)
 
     print("Best hyperparameters: ", study.best_params)
