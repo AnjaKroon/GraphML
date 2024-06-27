@@ -79,6 +79,6 @@ def objective(trial):
 if __name__ == "__main__":
     study = optuna.create_study(direction="minimize", study_name="GraphRNN mean + attention nightrun 2",
                                 storage="sqlite:///db.sqlite3", load_if_exists=True)
-    study.optimize(objective, n_trials=00)
+    study.optimize(objective, n_trials=100)
 
     print("Best hyperparameters: ", study.best_params)
