@@ -25,6 +25,8 @@ class GraphRNNModule(pl.LightningModule):
                 f_out_size=self.config["h_size"], fixed_edge_weights=None,  # Adjusted to None for now
                 device=self.real_device, dtype=torch.float32
             )
+        elif config["neighbor_aggregation"] == "attention":
+            self.neighbor_aggregator= None
         else:
             raise NotImplementedError(f"Neighbor aggregation method {config['neighbor_aggregation']} not implemented.")
 
@@ -53,7 +55,7 @@ class GraphRNNModule(pl.LightningModule):
         output = self(input_node_data, edge_weights=input_edge_weights)
         
         loss = self.criterion(output, target_node_data)        
-        self.log('train_loss', loss)
+        self.log('train_loss', loss, prog_bar=True, on_epoch=True)
         return loss
     
     def validation_step(self, batch, batch_idx):
@@ -61,5 +63,5 @@ class GraphRNNModule(pl.LightningModule):
         output = self(input_node_data, input_edge_weights)
         
         loss = self.criterion(output, target_node_data)
-        self.log('val_loss', loss)
+        self.log('val_loss', loss, prog_bar=True, on_epoch=True)
         return loss

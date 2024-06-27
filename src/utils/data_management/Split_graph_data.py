@@ -49,7 +49,7 @@ class Split_graph_dataset(torch.utils.data.Dataset):
         self.node_id2idx = {node_id: idx for idx, node_id in enumerate(self.node_ids)}
         
         self.edge_weights =  self.calc_edge_weights(flow_df)
-        self.node_data = self.calc_node_data(signals_df)
+        self.node_data = self.calc_node_data(signals_df) # (n_time, n_nodes, n_features)
         
         if normalize_edge_weights:
             mean_edge_weight = self.edge_weights[:, :, 2].mean().item()

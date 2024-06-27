@@ -10,22 +10,22 @@ from src.lightning_modules.data_modules.Split_graph_data_module import Split_gra
 
 def objective(trial):
     config = {
-        "n_epochs": 1000,
-        "num_train_dates": 10,
-        "num_validation_dates": 10,
+        "n_epochs": 2000,
+        "num_train_dates": 75,
+        "num_validation_dates": 13,
         "input_hor": 7,
         "pred_hor": 1,
-        "h_size": trial.suggest_int("h_size", 32, 128),
+        "h_size": trial.suggest_int("h_size", 64, 128),
         "batch_size": trial.suggest_int("batch_size", 1, 8),
-        "lr": trial.suggest_float("lr", 1e-6, 1e-3, log=True),
+        "lr": trial.suggest_float("lr", 1e-4, 1e-2, log=True),
         "max_grad_norm": 1,
-        "num_lr_steps": 6,
+        "num_lr_steps": 5,
         "lr_decay": 0.5,
         "normalize_edge_weights": trial.suggest_categorical("normalize_edge_weights", [True, False]),
-        "profile": False,
-        "neighbor_aggregation": "mean",
+        "neighbor_aggregation": trial.suggest_categorical("neighbor_aggregation", ["mean"]),
         "n_nodes": 3070,
         "n_features": 1,
+        "profile": False,
     }
     
     flow_dataset = "data/mobility_data/daily_county2county_2019_01_01.csv"
@@ -43,7 +43,7 @@ def objective(trial):
     
     logger = TensorBoardLogger("tb_logs", name="my_model")
     checkpoint_callback = ModelCheckpoint(monitor="val_loss")
-    early_stopping_callback = EarlyStopping(monitor="val_loss", patience=5, min_delta= 4e-3,  mode='min', verbose=True)
+    early_stopping_callback = EarlyStopping(monitor="val_loss", patience=5, min_delta= 5e-3,  mode='min', verbose=True)
 
     trainer = pl.Trainer(
         logger=logger,
@@ -52,6 +52,7 @@ def objective(trial):
         accelerator="gpu" if torch.cuda.is_available() else "cpu",
         devices=1 if torch.cuda.is_available() else None,
         log_every_n_steps=1
+        
         
     )
     
