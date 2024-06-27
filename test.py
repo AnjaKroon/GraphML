@@ -22,9 +22,10 @@ def objective(trial):
         "num_lr_steps": 5,
         "lr_decay": 0.5,
         "normalize_edge_weights": trial.suggest_categorical("normalize_edge_weights", [True, False]),
-        "neighbor_aggregation": trial.suggest_categorical("neighbor_aggregation", ["mean"]),
+        "neighbor_aggregation": trial.suggest_categorical("neighbor_aggregation", ["mean", "attention"]),
         "n_nodes": 3070,
         "n_features": 1,
+        "n_heads": trial.suggest_int("n_heads", 1, 4),
         "profile": False,
     }
     
@@ -35,11 +36,23 @@ def objective(trial):
                     "2020-10-19", "2020-10-20", "2020-10-21", "2020-10-22", "2020-10-23", "2020-10-24", "2020-10-25", "2020-10-26", "2020-10-27", "2020-10-28", "2020-10-29", "2020-10-30", "2020-10-31", "2020-11-01", "2020-11-02", "2020-11-03", "2020-11-04", "2020-11-05", "2020-11-06", "2020-11-07", "2020-11-08", "2020-11-09", "2020-11-10", "2020-11-11", "2020-11-12", "2020-11-13", "2020-11-14", "2020-11-15", "2020-11-16", "2020-11-17", "2020-11-18", "2020-11-19", "2020-11-20", "2020-11-21", "2020-11-22", "2020-11-23", "2020-11-24", "2020-11-25", "2020-11-26", "2020-11-27", "2020-11-28", "2020-11-29", "2020-11-30", "2020-12-01", "2020-12-02", "2020-12-03", "2020-12-04", "2020-12-05", "2020-12-06", "2020-12-07", "2020-12-08", "2020-12-09", "2020-12-10", "2020-12-11", "2020-12-12", "2020-12-13", "2020-12-14", "2020-12-15", "2020-12-16", "2020-12-17", "2020-12-18", "2020-12-19",
                     "2020-12-20" ]
 
-    
+    from src.utils.data_management.Split_graph_data import Split_graph_dataset
     data_module = Split_graph_data_module(epi_dates, flow_dataset, epi_dataset, config)
-
     
-    model = GraphRNNModule(config)
+    #really ugly fix cus init needs edge weights
+    data_set = Split_graph_dataset(
+        epi_dates=epi_dates,
+        flow_dataset=flow_dataset,
+        epi_dataset=epi_dataset,
+        input_hor=config["input_hor"],
+        pred_hor=config["pred_hor"],
+        fake_data=False,
+        normalize_edge_weights=config["normalize_edge_weights"]
+    )
+    print("edge weights shape: ", data_set.edge_weights.shape)
+    fixed_edge_weights = data_set.edge_weights[0, :, :]    
+    
+    model = GraphRNNModule(config, fixed_edge_weights=fixed_edge_weights)
     
     logger = TensorBoardLogger("tb_logs", name="my_model")
     checkpoint_callback = ModelCheckpoint(monitor="val_loss")
@@ -60,7 +73,7 @@ def objective(trial):
     return trainer.callback_metrics["val_loss"].item()
 
 if __name__ == "__main__":
-    study = optuna.create_study(direction="minimize", study_name="GraphRNN",
+    study = optuna.create_study(direction="minimize", study_name="GraphRNN attention",
                                 storage="sqlite:///db.sqlite3", load_if_exists=True)
     study.optimize(objective, n_trials=100)
 
