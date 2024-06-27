@@ -27,6 +27,7 @@ def objective(trial):
         "n_features": 1,
         "n_heads": trial.suggest_int("n_heads", 1, 4),
         "profile": False,
+        "min_delta": 5e-3,
     }
     
     flow_dataset = "data/mobility_data/daily_county2county_2019_01_01.csv"
@@ -59,7 +60,7 @@ def objective(trial):
     
     logger = TensorBoardLogger("tb_logs", name="my_model")
     checkpoint_callback = ModelCheckpoint(monitor="val_loss")
-    early_stopping_callback = EarlyStopping(monitor="val_loss", patience=5, min_delta= 1e-1,  mode='min', verbose=True)
+    early_stopping_callback = EarlyStopping(monitor="val_loss", patience=5, min_delta= config["min_delta"],  mode='min', verbose=True)
 
     trainer = pl.Trainer(
         logger=logger,
