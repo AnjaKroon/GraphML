@@ -73,7 +73,7 @@ def objective(trial):
     return trainer.callback_metrics["val_loss"].item()
 
 if __name__ == "__main__":
-    study = optuna.create_study(direction="minimize", study_name="GraphRNN attention",
+    study = optuna.create_study(direction="minimize", study_name="GraphRNN mean + attention",
                                 storage="sqlite:///db.sqlite3", load_if_exists=True)
     study.optimize(objective, n_trials=100)
 
