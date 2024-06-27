@@ -11,13 +11,13 @@ from src.lightning_modules.data_modules.Split_graph_data_module import Split_gra
 def objective(trial):
     config = {
         "n_epochs": 2000,
-        "num_train_dates": 175,
+        "num_train_dates": 70,
         "num_validation_dates": 20,
         "input_hor": 7,
         "pred_hor": 1,
-        "h_size": trial.suggest_int("h_size", 64, 128),
-        "batch_size": trial.suggest_int("batch_size", 1, 8),
-        "lr": trial.suggest_float("lr", 1e-6, 1e-3, log=True),
+        "h_size": trial.suggest_int("h_size", 64, 256),
+        "batch_size": trial.suggest_int("batch_size", 1, 6),
+        "lr": trial.suggest_float("lr", 1e-5, 1e-3, log=True),
         "max_grad_norm": 1,
         "num_lr_steps": 1,
         "lr_decay": 1,
@@ -59,7 +59,7 @@ def objective(trial):
     
     logger = TensorBoardLogger("tb_logs", name="my_model")
     checkpoint_callback = ModelCheckpoint(monitor="val_loss")
-    early_stopping_callback = EarlyStopping(monitor="val_loss", patience=5, min_delta= 5e-3,  mode='min', verbose=True)
+    early_stopping_callback = EarlyStopping(monitor="val_loss", patience=5, min_delta= 1e-1,  mode='min', verbose=True)
 
     trainer = pl.Trainer(
         logger=logger,
