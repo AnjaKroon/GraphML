@@ -11,12 +11,12 @@ from src.lightning_modules.data_modules.Split_graph_data_module import Split_gra
 def objective(trial):
     config = {
         "n_epochs": 2000,
-        "num_train_dates": 70,
-        "num_validation_dates": 20,
+        "num_train_dates": 300,
+        "num_validation_dates": 100,
         "input_hor": 7,
         "pred_hor": 1,
-        "h_size": trial.suggest_int("h_size", 64, 256),
-        "batch_size": trial.suggest_int("batch_size", 1, 6),
+        "h_size": trial.suggest_int("h_size", 32, 256),
+        "batch_size": 4,
         "lr": trial.suggest_float("lr", 1e-5, 1e-3, log=True),
         "max_grad_norm": 1,
         "num_lr_steps": 1,
@@ -27,7 +27,7 @@ def objective(trial):
         "n_features": 1,
         "n_heads": trial.suggest_int("n_heads", 1, 4),
         "profile": False,
-        "min_delta": 5e-3,
+        "min_delta": 0,
     }
     
     flow_dataset = "data/mobility_data/daily_county2county_2019_01_01.csv"
@@ -77,8 +77,8 @@ def objective(trial):
     return trainer.callback_metrics["val_loss"].item()
 
 if __name__ == "__main__":
-    study = optuna.create_study(direction="minimize", study_name="GraphRNN mean + attention",
+    study = optuna.create_study(direction="minimize", study_name="GraphRNN mean + attention nightrun 2",
                                 storage="sqlite:///db.sqlite3", load_if_exists=True)
-    study.optimize(objective, n_trials=100)
+    study.optimize(objective, n_trials=00)
 
     print("Best hyperparameters: ", study.best_params)
