@@ -5,7 +5,7 @@ import torch
 import pandas as pd
 from tqdm import tqdm
 from GraphRNN_utils import GraphRNN_dataset
-from GraphRNN import Graph_RNN
+from GraphRNN import Graph_RNN, Graph_RNN_init
 import matplotlib.pyplot as plt
 import json
 import torch.profiler
@@ -127,7 +127,7 @@ def train(model, train_loader, val_loader, criterion, optimizer, pred_hor, devic
             json.dump(val_losses, f)
     return train_losses, val_losses, parameter_mag, gradients, hidden_states
 
-config = {  "n_epochs": 800,
+config = {  "n_epochs": 1,
             "num_train_dates": 60,
             "num_validation_dates": 12,
             "input_hor": 7,
@@ -201,16 +201,20 @@ if __name__ == "__main__":
     neighbor_aggregator= Neighbor_Attention_multiHead(n_head=6,n_nodes=data_set.n_nodes,h_size=config["h_size"],
                                                     f_out_size = config["h_size"],edge_weights=fixed_edge_weights,device=device,dtype=torch.float32)
     #neighbor_aggregator=Neighbor_Attention_block(1,1,data_set.n_nodes,config["h_size"], config["h_size"],edge_weights=fixed_edge_weights, device=device)
-    model  = Graph_RNN(n_nodes = data_set.n_nodes,
-                       n_features = data_set.n_features,
-                       h_size = config["h_size"],
-                       f_out_size =config["h_size"],
-                       input_hor = config["input_hor"],
-                       fixed_edge_weights = fixed_edge_weights,
-                       device=device,
-                       dtype=torch.float32,
-                       neighbor_aggregator=neighbor_aggregator
-                       )
+    
+    model = Graph_RNN_init(n_nodes = data_set.n_nodes,n_features=data_set.n_features,input_hor=config["input_hor"],num_params=25000,
+                           fixed_edge_weights=fixed_edge_weights,neighbor_aggregator=neighbor_aggregator,device=device,dtype=torch.float32)
+    
+    # model  = Graph_RNN(n_nodes = data_set.n_nodes,
+    #                    n_features = data_set.n_features,
+    #                    h_size = config["h_size"],
+    #                    f_out_size =config["h_size"],
+    #                    input_hor = config["input_hor"],
+    #                    fixed_edge_weights = fixed_edge_weights,
+    #                    device=device,
+    #                    dtype=torch.float32,
+    #                    neighbor_aggregator=neighbor_aggregator
+    #                    )
     
     
 
@@ -320,5 +324,4 @@ if __name__ == "__main__":
     plt.savefig("Plots/gradient_magnitude_6heads.png")
     plt.show()
     print("Finished training run.")
-    
     

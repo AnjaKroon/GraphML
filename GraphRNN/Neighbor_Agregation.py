@@ -40,8 +40,6 @@ class Neighbor_Aggregation(torch.nn.Module):
             
             self.H_adj = self.calc_adj( 1, self.fixed_edge_weights, fixed=True)
             self.CALCED_FIXED = True
-
-
     def calc_adj(self,  batch_size, edge_weights=None, fixed = True):
         """Calculate the adjacency matrix H_adj
         Args:
@@ -117,9 +115,11 @@ class Neighbor_Aggregation(torch.nn.Module):
         
 
         
+
+        
 class Neighbor_Aggregation_Simple(Neighbor_Aggregation):
     def __init__(self, n_nodes, h_size , f_out_size, fixed_edge_weights=None, device='cpu', dtype=None):
-        super(Neighbor_Aggregation_Simple, self).__init__(n_nodes, h_size , f_out_size, fixed_edge_weights, device, dtype)
+        super().__init__(n_nodes, h_size , f_out_size, fixed_edge_weights, device, dtype)
         
         
     def forward (self, H,  edge_weights = None):
@@ -165,6 +165,12 @@ class Head_Graph(nn.Module):
         self.dropout = nn.Dropout(0.1)
         self.h_size=h_size
         self.f_out_size=f_out_size
+        self.weighting1 = nn.Parameter(torch.randn(1))
+        self.weighting2 = nn.Parameter(torch.randn(1))
+        torch.nn.init.xavier_normal_(self.query.weight)
+        torch.nn.init.xavier_normal_(self.key.weight)
+        torch.nn.init.xavier_normal_(self.value.weight)
+ 
     def forward(self, x):
     #     B, N, C = x.shape # (B, N, h_size)
     #     k = self.key(x) # (B, N, F_out)
@@ -195,6 +201,7 @@ class Head_Graph(nn.Module):
         B, N, C = x.shape # (B, N, h_size)
         
         out = torch.zeros((B, N, self.f_out_size), device=x.device)
+        #print(f"weight is {self.weighting}")
         for i in range(B):
             k = self.key(x[i])
             q = self.query(x[i])
@@ -209,7 +216,9 @@ class Head_Graph(nn.Module):
             #self.adj_matrix=self.adj_matrix.view(1,N,N).to_sparse()
            # print(wei.shape)
             self.adj_matrix=self.adj_matrix.to_dense().view(N,N).to_sparse()
-           # wei = wei+ self.adj_matrix # add adjacency matrix to the weights (edge informed attention) 
+            weights_edge = nn.Softmax()(torch.tensor([self.weighting1,self.weighting2]))
+            wei = weights_edge[0]*wei+ weights_edge[1]* self.adj_matrix # add adjacency matrix to the weights (edge informed attention) 
+            #wei = self.weighting1*wei+ self.weighting2* self.adj_matrix
             wei = self.dropout(wei)
             
             out[i] = torch.sparse.mm(wei, v) # (N, N) @ (N, F_out) = (N, F_out)   
@@ -226,7 +235,7 @@ class MultiHeadNeighbourAttention(nn.Module):
         self.heads = nn.ModuleList([Head_Graph(h_size, f_out_size, adj_matrix) for _ in range(n_heads)])
         self.linear = nn.Linear(n_heads*f_out_size, f_out_size)
         self.layer_norm = nn.LayerNorm(f_out_size)
-        
+        torch.nn.init.xavier_normal_(self.linear.weight)
     def forward(self, x):
         return self.layer_norm(self.linear(torch.cat([head(x) for head in self.heads], dim=-1))) # (B, N, F_out)
 class FeedFoward(nn.Module):
@@ -260,8 +269,8 @@ class BlockNeighbour(nn.Module):
         return x
 
 class Neighbor_Attention_block(Neighbor_Aggregation):
-    def __init__(self,n_layers,n_head,n_nodes, h_size, f_out_size, edge_weights=None, device='cpu'):
-        super().__init__(n_nodes, h_size, f_out_size, edge_weights, device)
+    def __init__(self,n_layers,n_head,n_nodes, h_size, f_out_size, edge_weights=None, device='cpu',dtype=None):
+        super().__init__(n_nodes, h_size, f_out_size, edge_weights, device,dtype)
         self.n_layers=n_layers
         self.n_head=n_head
         
@@ -276,10 +285,10 @@ class Neighbor_Attention_block(Neighbor_Aggregation):
         return H
     
 class Neighbor_Attention_multiHead(Neighbor_Aggregation):
-    def __init__(self,n_head,n_nodes, h_size, f_out_size, edge_weights=None, device='cpu'):
-        super().__init__(n_nodes, h_size, f_out_size, edge_weights, device)
+    def __init__(self,n_head,n_nodes, h_size, f_out_size, edge_weights=None, device='cpu',dtype=None):
+        super().__init__(n_nodes, h_size, f_out_size, edge_weights, device,dtype)
         self.sa = MultiHeadNeighbourAttention(n_head, h_size,f_out_size,self.adj_matrix)
-
+        
     def forward(self,H,edge_weights=None,node_idx=None):
         
         H = self.sa(H)

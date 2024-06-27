@@ -1,9 +1,10 @@
 import torch
 import torch.sparse as sparse
-from Neighbor_Agregation import *
+from Neighbor_Agregation import * 
 from tqdm import tqdm
+import numpy as np
 class Graph_RNN(torch.nn.Module):
-    def __init__(self, n_nodes, n_features, h_size, f_out_size, fixed_edge_weights=None , device='cpu', dtype=torch.float32, neighbor_aggregator=None):
+    def __init__(self, n_nodes, n_features, h_size, f_out_size, input_hor, fixed_edge_weights=None , device='cpu', dtype=torch.float32, neighbor_aggregator=None):
         """ Initialize the Graph RNN
         Args:
             n_nodes (int): number of nodes in the graph
@@ -28,6 +29,7 @@ class Graph_RNN(torch.nn.Module):
         self.n_features = n_features
         self.h_size = h_size
         self.f_out_size = f_out_size
+        self.input_hor = input_hor
         print(f"n_nodes: {n_nodes}, n_features: {n_features}, h_size: {h_size}, f_out_size: {f_out_size}")
         
         self.init_mag = 0.01
@@ -55,13 +57,9 @@ class Graph_RNN(torch.nn.Module):
         # torch.nn.init.xavier_normal_(self.E2)
 
         self.H2X_out_MLP = torch.nn.Sequential(
-            torch.nn.Linear(h_size, h_size),
+            torch.nn.Linear(h_size, 2*h_size),
             torch.nn.ReLU(),
-            torch.nn.Linear(h_size, h_size),
-            torch.nn.ReLU(),
-            torch.nn.Linear(h_size, h_size),
-            torch.nn.ReLU(),
-            torch.nn.Linear(h_size, n_features)
+            torch.nn.Linear(2*h_size, n_features)
         )
         if self.fixed_edge_weights is not None:
             self.node_idx = self.fixed_edge_weights[:, 0].unique()
@@ -158,3 +156,18 @@ class Graph_RNN(torch.nn.Module):
         x_out = self.H2out + FX + self.G_expanded
         self.H_prev = self.H
         return x_out
+
+class Graph_RNN_init(Graph_RNN):
+    def __init__(self, n_nodes, n_features,input_hor,num_params, fixed_edge_weights=None ,neighbor_aggregator=None,n_heads=0, device='cpu', dtype=torch.float32):
+        if "Simple" in str(type(neighbor_aggregator)):
+            assert n_heads == 0, "Using simple aggregation, n_heads must be 0"
+
+
+        self.h_size = self.calc_params(num_params,n_heads)
+        print(f"hidden state size used is {self.h_size}")
+        self.f_out_size= self.h_size
+        super().__init__(n_nodes,n_features,self.h_size,self.f_out_size,input_hor,fixed_edge_weights,device,dtype,neighbor_aggregator)
+        
+    def calc_params(self,num_params,n_heads):
+        h_size = int(np.sqrt(num_params/(4*(1+n_heads))))
+        return h_size

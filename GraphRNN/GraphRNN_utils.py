@@ -8,13 +8,24 @@ from tqdm import tqdm
 import numpy as np
 from preprocessor import Preprocessor
 import matplotlib.pyplot as plt
+#adding more colours to the cycle because the params magnitude plot is reusing colours.
+colors = [
+    'b', 'g', 'r', 'c', 'm', 'y', 'k', 'orange', 'purple', 'brown',
+    'pink', 'lime', 'teal', 'lavender', 'turquoise', 'tan', 'gold',
+    'darkred', 'navy', 'olive', 'maroon', 'lightblue', 'darkgreen',
+    'magenta', 'gray'
+]
+
+# Update the color cycle in Matplotlib
+plt.rc('axes', prop_cycle=(plt.cycler('color', colors)))
 
 class GraphRNN_dataset(torch.utils.data.Dataset):
-    def __init__(self, epi_dates, flow_dataset="data/daily_county2county_2019_01_01.csv", epi_dataset="data_epi/epidemiology.csv", input_hor=4, pred_hor=1, fake_data=False):
+    def __init__(self, epi_dates, flow_dataset="data/daily_county2county_2019_01_01.csv", 
+                 epi_dataset="data_epi/epidemiology.csv", input_hor=4, pred_hor=1, fake_data=False, normalize_edge_weights=True):
         super(GraphRNN_dataset, self).__init__()
         self.input_hor = input_hor
         self.pred_hor = pred_hor
-        
+        self.normalize_edge_weights = normalize_edge_weights
         if fake_data:
             self.generate_fake_data()
             return
@@ -50,10 +61,26 @@ class GraphRNN_dataset(torch.utils.data.Dataset):
         self.edge_weights =  self.calc_edge_weights(flow_df)
         self.node_data = self.calc_node_data(signals_df)
         
+        if normalize_edge_weights:
+            mean_edge_weight = self.edge_weights[:, :, 2].mean().item()
+            std_dev_edge_weight = self.edge_weights[:, :, 2].std().item()
+            self.edge_weights[:, :, 2] = (self.edge_weights[:, :, 2] - mean_edge_weight) / std_dev_edge_weight
+        else:
+            max_edge_weight = self.edge_weights[:, :, 2].max().item()
+            self.edge_weights[:, :, 2] = self.edge_weights[:, :, 2] / max_edge_weight
+
+        for feature in range(self.n_features):
+            mean_node_data = self.node_data[:, :, feature].mean().item()
+            std_dev_node_data = self.node_data[:, :, feature].std().item()
+            self.node_data[:, :, feature] = (self.node_data[:, :, feature] - mean_node_data) / std_dev_node_data
+        
         check_data = True   
         if check_data:
-            print(f"node_data: {self.node_data.shape}")
-            print(f"edge_weights: {self.edge_weights.shape}")
+            print(f"node_data: {self.node_data.shape}  {self.node_data.dtype} || {self.node_data[:, :, 0].mean().item()} {self.node_data[:, :, 0].std().item()}")
+            print(f"edge_weights: {self.edge_weights.shape} {self.edge_weights.dtype} || {self.edge_weights[:, :, 2].mean().item()} {self.edge_weights[:, :, 2].std().item()}")
+            print("=====================================")
+            print(f"Node sample: {self.node_data[0, :5, 0]}")
+            print(f"Edge sample: {self.edge_weights[0, :5, :]}")
             print("=====================================")
             self.node_ids_from_edges = torch.cat((self.edge_weights[:, :, 0].unique(), self.edge_weights[:, :, 1].unique())).unique().tolist()
             self.node_ids_from_edges.sort()
@@ -149,7 +176,8 @@ class GraphRNN_dataset(torch.utils.data.Dataset):
             raise ValueError(f"Target node data shape {target_node_data.shape} does not match prediction horizon {self.pred_hor}")
         
         return input_edge_weights, input_node_data, target_edge_weights, target_node_data
-    def visualize(self, index, node_slice):
+    
+    def visualize(self, index, num_nodes=5, num_edges=5):
         if index >= len(self):
             raise ValueError(f"Index {index} out of bounds for dataset of length {len(self)}")
         
@@ -159,7 +187,8 @@ class GraphRNN_dataset(torch.utils.data.Dataset):
 
         # Plot node data
         axes[0].set_title("Node Data Over Time")
-        for node in range(self.n_nodes):
+
+        for node in range(num_nodes):
             axes[0].plot(input_node_data[:, node, 0].numpy(), label=f"Node {node}")
         axes[0].legend()
         axes[0].set_xlabel("Time Step")
@@ -167,7 +196,7 @@ class GraphRNN_dataset(torch.utils.data.Dataset):
         
         # Plot edge weights
         axes[1].set_title("Edge Weights Over Time")
-        for edge in range(self.n_edges):
+        for edge in range(num_edges):
             axes[1].plot(input_edge_weights[:, edge, 2].numpy(), label=f"Edge {edge}")
         axes[1].legend()
         axes[1].set_xlabel("Time Step")
@@ -205,24 +234,24 @@ class GraphRNN_dataset(torch.utils.data.Dataset):
                     self.node_data[time, node, 0] = self.node_data[time-1, node, 0] + 0.1*(torch.rand((1,)).item() - 0.5)
         return
 
-class GraphRNN_DataSampler(torch.utils.data.Sampler):
-    def __init__(self, dataset, input_hor, pred_hor):
-        self.dataset = dataset
-        self.input_hor = input_hor
-        self.pred_hor = pred_hor
-        self.new_seq_start_idx()
-        super(GraphRNN_DataSampler, self).__init__()
+# class GraphRNN_DataSampler(torch.utils.data.Sampler):
+#     def __init__(self, dataset, input_hor, pred_hor):
+#         self.dataset = dataset
+#         self.input_hor = input_hor
+#         self.pred_hor = pred_hor
+#         self.new_seq_start_idx()
+#         super(GraphRNN_DataSampler, self).__init__()
 
-    def new_seq_start_idx(self):
-        start_idx = torch.randint(0, (self.input_hor + self.pred_hor), (1,)).item()
-        self.start_idx_list = [start_idx + (self.input_hor + self.pred_hor) * i for i in range(int(np.floor((self.dataset.n_time - start_idx) / (self.input_hor + self.pred_hor))))]
+#     def new_seq_start_idx(self):
+#         start_idx = torch.randint(0, (self.input_hor + self.pred_hor), (1,)).item()
+#         self.start_idx_list = [start_idx + (self.input_hor + self.pred_hor) * i for i in range(int(np.floor((self.dataset.n_time - start_idx) / (self.input_hor + self.pred_hor))))]
     
-    def __len__(self):
-        return len(self.start_idx_list)
+#     def __len__(self):
+#         return len(self.start_idx_list)
      
-    def __iter__(self):
-        self.new_seq_start_idx()
-        return iter(self.start_idx_list)
+#     def __iter__(self):
+#         self.new_seq_start_idx()
+#         return iter(self.start_idx_list)
 
 
 if __name__ == '__main__':
@@ -242,8 +271,17 @@ if __name__ == '__main__':
 
     # data_sampler = GraphRNN_DataSampler(data_set, input_hor=input_hor, pred_hor=pred_hor)
     # data_loader = torch.utils.data.DataLoader(data_set, batch_size=3, sampler=data_sampler, num_workers=3)
-    data_loader = torch.utils.data.DataLoader(data_set, batch_size=3, num_workers=3)
+    data_loader = torch.utils.data.DataLoader(data_set, batch_size=2, num_workers=0)
+    
+    num_nans = 0
+    for input_edge_weights, input_node_data, target_edge_weights, target_node_data in data_loader:
+        for batch in range(input_node_data.shape[0]):
+            for time in range(input_node_data.shape[1]):
+                for node in range(input_node_data.shape[2]):
+                    if torch.isnan(input_node_data[batch, time, node, 0]).item():
+                        num_nans += 1
 
+    print(f"Number of NaNs in the dataset: {num_nans}")
     
     for i in range(10):
         print(f"Epoch: {i}")
