@@ -1,0 +1,14 @@
+wandb_version: 1
+
+batch_size:
+  value: 2
+h_size:
+  value: 80
+lr:
+  value: 1.0005087212817407
+n_heads:
+  value: 2
+neighbor_aggregation:
+  value: mean
+normalize_edge_weights:
+  value: true

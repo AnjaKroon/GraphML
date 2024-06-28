@@ -1,4 +1,3 @@
-# sweep_config.yaml
 method: bayes
 metric:
   name: val_loss
@@ -9,13 +8,13 @@ parameters:
     min: 32
     max: 256
   batch_size:
-    values: [4]
+    values: [2, 4, 6]
   lr:
     distribution: log_uniform
     min: 3e-6
     max: 1e-3
   normalize_edge_weights:
-    values: [True, False]
+    values: [true, false]
   neighbor_aggregation:
     values: ["mean", "attention"]
   n_heads:
