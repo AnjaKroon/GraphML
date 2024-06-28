@@ -15,8 +15,8 @@ def train(config=None):
         # Set up your configurations
         config_dict = {
             "n_epochs": 2000,
-            "num_train_dates": 300,
-            "num_validation_dates": 100,
+            "num_train_dates": 100,
+            "num_validation_dates": 20,
             "input_hor": 7,
             "pred_hor": 1,
             "h_size": config.h_size,
@@ -49,7 +49,7 @@ def train(config=None):
         data_module = Split_graph_data_module(epi_dates, flow_dataset, epi_dataset, config_dict)
         
         data_set = Split_graph_dataset(
-            epi_dates=epi_dates,
+            epi_dates=["2020-06-09"],
             flow_dataset=flow_dataset,
             epi_dataset=epi_dataset,
             input_hor=config_dict["input_hor"],

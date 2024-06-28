@@ -11,8 +11,8 @@ parameters:
     values: [2, 4, 6]
   lr:
     distribution: log_uniform
-    min: 3e-6
-    max: 1e-3
+    min: -6
+    max: -3
   normalize_edge_weights:
     values: [true, false]
   neighbor_aggregation:
