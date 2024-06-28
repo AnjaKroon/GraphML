@@ -31,7 +31,7 @@ The used like this:
 """
 
 class GCNN_RNN(torch.nn.Module):
-    def __init__(self, num_params, input_horizon, prediction_horizon, n_nodes, n_features, n_out_features, h_size, device, dtype, fixed_edge_weights=None):
+    def __init__(self, num_params, input_horizon, prediction_horizon, n_nodes, n_features, device, dtype, fixed_edge_weights=None):
         super(GCNN_RNN, self).__init__()
         self.device = device
         self.dtype = dtype
@@ -41,10 +41,15 @@ class GCNN_RNN(torch.nn.Module):
         self.n_out_features = n_out_features
         self.input_horizon = input_horizon
         self.fixed_edge_weights = fixed_edge_weights
-
+        
         #currently not using these
         self.prediction_horizon = prediction_horizon
         self.num_params = num_params
+        
+        #calculate
+        # The output size is equal to the input size plus two times the padding minus the kernel size over the stride plus one
+        n_out_features =
+        h_size =
         
         if dtype != torch.float32:
             raise ValueError("Only float32 is supported")
@@ -88,7 +93,7 @@ class GCNN_RNN(torch.nn.Module):
         # I reduce the input horizon by 2, because otherwise the size of x doesn't factor out to these four variables
         x = x.view(batch_size, self.input_horizon-2, self.n_nodes, self.n_out_features)
         
-        h = torch.randn(1, 3070, 50)
+        h = torch.ones(batch_size, self.n_nodes, self.h_size) * 1e-3
         for i in range(self.input_horizon-2):
             x_in = x[:, i, :, :]
             x_out, h = self.forward_step(x_in, h)

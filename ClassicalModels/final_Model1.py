@@ -13,19 +13,25 @@ The used like this:
 """
 
 class model1_TCN(torch.nn.Module):
-    def __init__(self, num_params, input_horizon, prediction_horizon, n_nodes, n_features, n_out_features, h_size, device, dtype):
+    def __init__(self, num_params, input_horizon, prediction_horizon, n_nodes, n_features, device, dtype):
         super(model1_TCN, self).__init__()
         self.device = device
         self.dtype = dtype
         self.n_nodes = n_nodes
         self.n_features = n_features
-        self.h_size = h_size
-        self.n_out_features = n_out_features
         self.input_horizon = input_horizon
+
+        # unused
+        self.prediction_horizon = prediction_horizon
+        
+        # calculate
+        num_channels = [n_nodes, n_features, 4]
+        kernel_size = 1
+        
         self.model = TCN(
                 num_inputs = n_features,
-                num_channels = [3070, 1, 4],
-                kernel_size = 1, #kernel_size: int = 4,
+                num_channels = num_channels,
+                kernel_size = kernel_size, #kernel_size: int = 4,
                 input_shape = 'NLC', #input_shape: str = 'NCL',
                 lookahead = input_horizon, # default: 0
                 #dilations: Optional[ ArrayLike ] = None,
@@ -44,6 +50,6 @@ class model1_TCN(torch.nn.Module):
             )
         self.model.to(device)
         
-    def forward(self, x_in):#, edge_weights=None, pred_hor = 1):
+    def forward(self, x_in):
         x_in = x_in[0]
         return self.model(x_in)
