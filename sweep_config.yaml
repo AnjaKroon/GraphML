@@ -3,10 +3,8 @@ metric:
   name: val_loss
   goal: minimize
 parameters:
-  h_size:
-    distribution: int_uniform
-    min: 32
-    max: 256
+  num_parameters:
+    values: [100, 1000, 10000, 100000]
   batch_size:
     values: [8]
   lr:

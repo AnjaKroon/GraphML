@@ -11,7 +11,6 @@ def train(config=None):
     with wandb.init(config=config):
         config = wandb.config
         run = wandb.init()
-        wandb.config.update
 
 
         # Set up your configurations
@@ -23,7 +22,6 @@ def train(config=None):
             "num_validation_dates": 20,
             "input_hor": 7,
             "pred_hor": 1,
-            "h_size": config.h_size,
             "batch_size": config.batch_size,
             "lr": config.lr,
             "max_grad_norm": 1,
