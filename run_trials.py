@@ -19,7 +19,7 @@ def train(config=None):
             "model": config.model,
             "num_params" : 100000,
             "n_epochs": 2000,
-            "num_train_dates": 100,
+            "num_train_dates": 300,
             "num_validation_dates": 20,
             "input_hor": 7,
             "pred_hor": 1,
@@ -36,6 +36,7 @@ def train(config=None):
             "profile": False,
             "min_delta": 0,
             "mlp_width": config.rel_mlp_width
+
         }
         
         flow_dataset = "data/mobility_data/daily_county2county_2019_01_01.csv"

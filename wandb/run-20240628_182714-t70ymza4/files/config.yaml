@@ -8,7 +8,7 @@ _wandb:
     framework: lightning
     is_jupyter_run: false
     is_kaggle_kernel: false
-    start_time: 1719591757
+    start_time: 1719592034
     t:
       1:
       - 1
@@ -25,7 +25,6 @@ _wandb:
       - 55
       - 103
       3:
-      - 2
       - 23
       - 24
       - 37
@@ -40,10 +39,10 @@ batch_size:
   value: 8
 h_size:
   desc: null
-  value: 224
+  value: 229
 lr:
   desc: null
-  value: 0.008081058286829375
+  value: 0.015917200416027316
 model:
   desc: null
   value: GRNN
