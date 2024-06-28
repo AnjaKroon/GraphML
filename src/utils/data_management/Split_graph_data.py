@@ -11,7 +11,7 @@ from src.utils.data_management.preprocessor import Preprocessor
 
 class Split_graph_dataset(torch.utils.data.Dataset):
     def __init__(self, epi_dates, flow_dataset="data/daily_county2county_2019_01_01.csv", 
-                 epi_dataset="data_epi/epidemiology.csv", input_hor=4, pred_hor=1, fake_data=False, normalize_edge_weights=True):
+        epi_dataset="data_epi/epidemiology.csv", input_hor=4, pred_hor=1, fake_data=False, normalize_edge_weights=True):
         super(Split_graph_dataset, self).__init__()
         self.input_hor = input_hor
         self.pred_hor = pred_hor

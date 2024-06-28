@@ -18,26 +18,47 @@ class GraphRNNModule(pl.LightningModule):
         
         self.real_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print("Device: ", self.real_device)
+        self.h_size = self.calc_h_size(config["num_params"])
         # Setup the model
         if config["neighbor_aggregation"] == "mean":
             self.neighbor_aggregator = Neighbor_Aggregation_Simple(
-                n_nodes=self.config["n_nodes"], h_size=self.config["h_size"],
-                f_out_size=self.config["h_size"], fixed_edge_weights=fixed_edge_weights,  # Adjusted to None for now
+                n_nodes=self.config["n_nodes"], h_size=self.h_size,
+                f_out_size=self.h_size, fixed_edge_weights=fixed_edge_weights,  # Adjusted to None for now
                 device=self.real_device, dtype=torch.float32
             )
         elif config["neighbor_aggregation"] == "attention":
             self.neighbor_aggregator= Neighbor_Attention_multiHead(
-            n_head= config["n_heads"], n_nodes=self.config["n_nodes"], h_size=self.config["h_size"],
-            f_out_size=self.config["h_size"], edge_weights=fixed_edge_weights, device=self.device, dtype=torch.float32) # Adjusted to None for now
+            n_head= config["n_heads"], n_nodes=self.config["n_nodes"], h_size=self.h_size,
+            f_out_size=self.h_size, edge_weights=fixed_edge_weights, device=self.device, dtype=torch.float32) # Adjusted to None for now
+        elif config["neighbor_aggregation"] == "none":
+            self.neighbor_aggregator = None
         else:
             raise NotImplementedError(f"Neighbor aggregation method {config['neighbor_aggregation']} not implemented.")
 
         self.model = Graph_RNN(
             n_nodes=self.config["n_nodes"], n_features=self.config["n_features"],
-            h_size=self.config["h_size"], f_out_size=self.config["h_size"],
+            h_size=self.h_size, f_out_size=self.h_size,
             input_hor=self.config["input_hor"], fixed_edge_weights=fixed_edge_weights,  # Adjusted to None for now
-            device=self.real_device, dtype=torch.float32, neighbor_aggregator=self.neighbor_aggregator
+            device=self.real_device, dtype=torch.float32, neighbor_aggregator=self.neighbor_aggregator,
+            mlp_width=self.config["mlp_width"]
         )
+    def calc_h_size(self, num_params):
+        # num_params = 2 * h_size**2 + h_size * n_features 
+        # + h_size + h_size * h_size + n_features * h_size + n_features**2
+        # + 2* (h_size*mlp_width)**2
+        # approx= (2*mlp_width**2+ 2 + use_neighbor)*h_size**2
+        import math
+        if self.config["neighbor_aggregation"] == "mean":
+            h_size = math.sqrt(num_params/(2*self.config["mlp_width"]**2 + self.config["mlp_width"]  + 2 + 1))
+        elif self.config["neighbor_aggregation"] == "attention":
+            h_size = math.sqrt(num_params/(2*self.config["mlp_width"]**2 + self.config["mlp_width"] +  2 + self.config["n_heads"]*2 + 1 ))
+        elif self.config["neighbor_aggregation"] == "none":
+            h_size = math.sqrt(num_params/(2*self.config["mlp_width"]**2+ self.config["mlp_width"] + 2))
+        else:
+            raise NotImplementedError(f"Neighbor aggregation method {self.config['neighbor_aggregation']} not implemented.")
+        print(f"Calculated h_size: {int(h_size)}")
+        return int(h_size)
+      
     def criterion(self, output, target):
         MSE = torch.nn.MSELoss()
         return MSE(output[:, -self.config["pred_hor"]:, :, :], target)

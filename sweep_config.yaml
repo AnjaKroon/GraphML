@@ -8,7 +8,7 @@ parameters:
     min: 32
     max: 256
   batch_size:
-    values: [2, 4, 6]
+    values: [8]
   lr:
     distribution: log_uniform
     min: -6
@@ -16,8 +16,17 @@ parameters:
   normalize_edge_weights:
     values: [true, false]
   neighbor_aggregation:
-    values: ["mean", "attention"]
+    # values: ["mean", "attention", "none"]
+    values: ["none"]
+  model:
+    values: ["GRNN"]
+    # values: ["TCN", "GCNN_RNN", "GRNN"]
   n_heads:
     distribution: int_uniform
     min: 1
     max: 4
+  rel_mlp_width:
+    distribution: int_uniform
+    min: 1
+    max: 3
+

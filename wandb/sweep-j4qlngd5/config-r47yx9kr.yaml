@@ -1,0 +1,18 @@
+wandb_version: 1
+
+batch_size:
+  value: 8
+h_size:
+  value: 241
+lr:
+  value: 0.0037050352485350504
+model:
+  value: GRNN
+n_heads:
+  value: 3
+neighbor_aggregation:
+  value: none
+normalize_edge_weights:
+  value: false
+rel_mlp_width:
+  value: 2

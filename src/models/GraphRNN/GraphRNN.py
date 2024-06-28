@@ -3,7 +3,7 @@ import torch.sparse as sparse
 from tqdm import tqdm
 class Graph_RNN(torch.nn.Module):
     def __init__(self, n_nodes, n_features, h_size, f_out_size, input_hor, fixed_edge_weights=None , 
-                 device='cpu', dtype=torch.float32, neighbor_aggregator=None):
+                 device='cpu', dtype=torch.float32, neighbor_aggregator=None, mlp_width=2):
         """ Initialize the Graph RNN
         Args:
             n_nodes (int): number of nodes in the graph
@@ -36,7 +36,8 @@ class Graph_RNN(torch.nn.Module):
         self.init_H = torch.zeros(h_size, device=self.device, dtype=self.dtype)
         self.A = torch.nn.parameter.Parameter(torch.randn(h_size, h_size, device=self.device, dtype=self.dtype)* self.init_mag ,  requires_grad=True)
         self.B = torch.nn.parameter.Parameter(torch.randn(h_size, n_features , device=self.device, dtype=self.dtype)* self.init_mag ,  requires_grad=True)
-        self.C = torch.nn.parameter.Parameter(torch.randn(h_size, f_out_size, device=self.device, dtype=self.dtype)* self.init_mag ,  requires_grad=True)
+        if self.use_neighbors:
+            self.C = torch.nn.parameter.Parameter(torch.randn(h_size, f_out_size, device=self.device, dtype=self.dtype)* self.init_mag ,  requires_grad=True)
         self.D = torch.nn.parameter.Parameter(torch.randn(h_size, device=self.device, dtype=self.dtype)* self.init_mag ,  requires_grad=True)
         
         # self.E = torch.nn.parameter.Parameter(torch.randn(h_size, h_size, device=self.device, dtype=self.dtype)* self.init_mag ,  requires_grad=True)
@@ -47,7 +48,8 @@ class Graph_RNN(torch.nn.Module):
         self.G = torch.nn.parameter.Parameter(torch.randn(n_features, device=self.device, dtype=self.dtype)* self.init_mag ,  requires_grad=True)
         torch.nn.init.xavier_normal_(self.A)
         torch.nn.init.xavier_normal_(self.B)
-        torch.nn.init.xavier_normal_(self.C)
+        if self.use_neighbors:
+            torch.nn.init.xavier_normal_(self.C)
         
         #test not init F at eye
         torch.nn.init.xavier_normal_(self.F)
@@ -56,9 +58,11 @@ class Graph_RNN(torch.nn.Module):
         # torch.nn.init.xavier_normal_(self.E2)
 
         self.H2X_out_MLP = torch.nn.Sequential(
-            torch.nn.Linear(h_size, 2*h_size),
+            torch.nn.Linear(h_size, mlp_width*h_size),
             torch.nn.ReLU(),
-            torch.nn.Linear(2*h_size, n_features)
+            torch.nn.Linear(mlp_width*h_size, mlp_width*h_size),
+            torch.nn.ReLU(),
+            torch.nn.Linear(mlp_width*h_size, n_features)
         )
         if self.fixed_edge_weights is not None:
             self.node_idx = self.fixed_edge_weights[:, 0].unique()
@@ -129,7 +133,8 @@ class Graph_RNN(torch.nn.Module):
         
         self.A_expanded = self.A.unsqueeze(0).unsqueeze(1).expand(x_in.shape[0], self.n_nodes, self.h_size, self.h_size)
         self.B_expanded = self.B.unsqueeze(0).unsqueeze(1).expand(x_in.shape[0], self.n_nodes, self.h_size, self.n_features)
-        self.C_expanded = self.C.unsqueeze(0).unsqueeze(1).expand(x_in.shape[0], self.n_nodes, self.h_size, self.f_out_size)
+        if self.use_neighbors:
+            self.C_expanded = self.C.unsqueeze(0).unsqueeze(1).expand(x_in.shape[0], self.n_nodes, self.h_size, self.f_out_size)
         self.D_expanded = self.D.unsqueeze(0).unsqueeze(1).expand(x_in.shape[0], self.n_nodes, self.h_size)
         # self.E_expanded = self.E.unsqueeze(0).unsqueeze(1).expand(x_in.shape[0], self.n_nodes, self.h_size, self.h_size)
         # self.E2_expanded = self.E2.unsqueeze(0).unsqueeze(1).expand(x_in.shape[0], self.n_nodes, self.n_features, self.h_size)
@@ -139,8 +144,10 @@ class Graph_RNN(torch.nn.Module):
         
         AH = torch.einsum('bnij,bnj->bni', self.A_expanded, self.H_prev)
         BX = torch.einsum('bnij,bnj->bni', self.B_expanded, x_in)
-        CAG = torch.einsum('bnij,bnj->bni', self.C_expanded, self.neigh_ag)
-        
+        if self.use_neighbors:
+            CAG = torch.einsum('bnij,bnj->bni', self.C_expanded, self.neigh_ag)
+        else:
+            CAG = torch.zeros(self.H.shape, dtype=self.dtype, device=self.device)
 
         
         FX = torch.einsum('bnij,bnj->bni', self.F_expanded, x_in)

@@ -11,9 +11,13 @@ def train(config=None):
     with wandb.init(config=config):
         config = wandb.config
         run = wandb.init()
+        wandb.config.update
+
 
         # Set up your configurations
         config_dict = {
+            "model": config.model,
+            "num_params" : 100000,
             "n_epochs": 2000,
             "num_train_dates": 100,
             "num_validation_dates": 20,
@@ -29,9 +33,9 @@ def train(config=None):
             "neighbor_aggregation": config.neighbor_aggregation,
             "n_nodes": 3070,
             "n_features": 1,
-            "n_heads": config.n_heads,
             "profile": False,
             "min_delta": 0,
+            "mlp_width": config.rel_mlp_width
         }
         
         flow_dataset = "data/mobility_data/daily_county2county_2019_01_01.csv"
@@ -60,7 +64,14 @@ def train(config=None):
         print("edge weights shape: ", data_set.edge_weights.shape)
         fixed_edge_weights = data_set.edge_weights[0, :, :]    
         
-        model = GraphRNNModule(config_dict, fixed_edge_weights=fixed_edge_weights)
+        if config["model"] == "GRNN":
+            model = GraphRNNModule(config_dict, fixed_edge_weights=fixed_edge_weights)
+        elif config["model"] == "GCNN_RNN":
+            model = GCNN_RNNModule(config_dict, fixed_edge_weights=fixed_edge_weights)
+        elif config["model"] == "TCN":
+            model = TCNModule(config_dict)
+        else:
+            raise NotImplementedError(f"Model {config['model']} not implemented.")
         
         wandb_logger = WandbLogger()
         checkpoint_callback = ModelCheckpoint(monitor="val_loss")
