@@ -4,6 +4,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.loggers import WandbLogger
 from src.lightning_modules.model_modules.GraphRNN_module import GraphRNNModule
+from src.lightning_modules.model_modules.GCNN_RNN_module import GCNN_RNNModule
 from src.lightning_modules.data_modules.Split_graph_data_module import Split_graph_data_module
 import wandb
 

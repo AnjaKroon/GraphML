@@ -4,20 +4,20 @@ metric:
   goal: minimize
 parameters:
   num_parameters:
-    values: [100, 1000, 10000, 100000]
+    values: [1, 100, 1000, 10000, 100000]
   batch_size:
     values: [8]
   lr:
-    distribution: log_uniform
-    min: -6
-    max: -3
+    distribution: log_uniform_values
+    min: 1e-5
+    max: 1e-3
   normalize_edge_weights:
     values: [true, false]
   neighbor_aggregation:
     # values: ["mean", "attention", "none"]
     values: ["none"]
   model:
-    values: ["GRNN"]
+    values: ["GCNN_RNN"]
     # values: ["TCN", "GCNN_RNN", "GRNN"]
   n_heads:
     distribution: int_uniform

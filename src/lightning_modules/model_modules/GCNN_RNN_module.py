@@ -3,16 +3,16 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from src.utils.data_management import Split_graph_data
-from src.models.TCN.TCN import model1_TCN
+from src.models.GCNN_RNN.GCNN_RNN import GCNN_RNN
 from src.models.GraphRNN.Neighbor_Agregation import Neighbor_Aggregation_Simple, Neighbor_Attention_multiHead
 import pytorch_lightning as pl
 import torch
 
 from sklearn.model_selection import train_test_split
 
-class TCNModule(pl.LightningModule):
-    def __init__(self, config):
-        super(TCNModule, self).__init__()
+class GCNN_RNNModule(pl.LightningModule):
+    def __init__(self, config, fixed_edge_weights=None):
+        super(GCNN_RNNModule, self).__init__()
         self.save_hyperparameters(config)
         self.config = config
         
@@ -20,17 +20,23 @@ class TCNModule(pl.LightningModule):
         print("Device: ", self.real_device)
         # Setup the model
         
+
+        self.h_size, self.n_out_features = self.calc_params(config["num_params"])
+        self.h_size = self.h_size
+        self.n_out_features = self.n_out_features
         
+        self.model = GCNN_RNN( input_horizon= config["input_hor"], prediction_horizon= config["pred_hor"],
+                              n_nodes= config["n_nodes"], n_features= config["n_features"], 
+                              n_out_features= self.n_out_features, h_size= self.h_size, 
+                              device= self.real_device, dtype= torch.float32, fixed_edge_weights= fixed_edge_weights,
+                              mlp_width= config["mlp_width"])
         
-        self.model = model1_TCN(num_params= config["num_params"], input_horizon= config["input_hor"], 
-                                prediction_horizon= config["pred_hor"], n_nodes= config["n_nodes"], 
-                                n_features= config["n_features"], device= self.real_device, dtype= torch.float32, 
-                                h_size= config["h_size"])
         
     def calc_params(self, num_params):
         import math
-        h_size = math.ceil(math.sqrt(num_params))/4
-        return h_size
+        h_size = math.ceil(math.sqrt(num_params/4))
+        print("Stil need to implement calculation params for GCNN_RNNModule. Now using  dummy values")
+        return h_size, 10
     
     def criterion(self, output, target):
         MSE = torch.nn.MSELoss()

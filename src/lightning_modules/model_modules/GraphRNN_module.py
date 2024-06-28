@@ -57,6 +57,9 @@ class GraphRNNModule(pl.LightningModule):
         else:
             raise NotImplementedError(f"Neighbor aggregation method {self.config['neighbor_aggregation']} not implemented.")
         print(f"Calculated h_size: {int(h_size)}")
+        if h_size < 1:
+            print("h_size is less than 1. Setting it to 1")
+            h_size = 1
         self.log("h_size", int(h_size))
         return int(h_size)
       

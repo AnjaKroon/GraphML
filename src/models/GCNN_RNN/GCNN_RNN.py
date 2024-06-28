@@ -31,7 +31,7 @@ The used like this:
 """
 
 class GCNN_RNN(torch.nn.Module):
-    def __init__(self, num_params, input_horizon, prediction_horizon, n_nodes, n_features, n_out_features, h_size, device, dtype, fixed_edge_weights=None):
+    def __init__(self, input_horizon, prediction_horizon, n_nodes, n_features, n_out_features, h_size, device, dtype, fixed_edge_weights, mlp_width):
         super(GCNN_RNN, self).__init__()
         self.device = device
         self.dtype = dtype
@@ -40,11 +40,10 @@ class GCNN_RNN(torch.nn.Module):
         self.h_size = h_size
         self.n_out_features = n_out_features
         self.input_horizon = input_horizon
-        self.fixed_edge_weights = fixed_edge_weights
-
+        self.fixed_edge_weights = fixed_edge_weights.to(device)
+        self.mlp_width = mlp_width
         #currently not using these
         self.prediction_horizon = prediction_horizon
-        self.num_params = num_params
         
         if dtype != torch.float32:
             raise ValueError("Only float32 is supported")
@@ -52,10 +51,15 @@ class GCNN_RNN(torch.nn.Module):
                          n_output_features= n_out_features, device= device, 
                          dtype= dtype, fixed_edge_weights= fixed_edge_weights)
         self.GCNN.to(device)
-        
-        self.RNN = torch.nn.RNN(n_out_features, h_size, device=device)
-        self.RNN.to(device)
-        
+        self.RNN = torch.nn.RNN(input_size=n_out_features, hidden_size=h_size,  batch_first=True, device=device, dtype=dtype)
+        self.MLP = torch.nn.Sequential(
+            torch.nn.Linear(h_size, h_size*mlp_width),
+            torch.nn.ReLU(),
+            torch.nn.Linear(h_size*mlp_width, h_size*mlp_width),
+            torch.nn.ReLU(),
+            torch.nn.Linear(h_size*mlp_width, n_out_features)
+            
+        )
     def forward(self, x_in, edge_weights=None, pred_hor = 1):
         if edge_weights is not None:
             raise ValueError("Only fixed edge weights are supported")
@@ -68,33 +72,50 @@ class GCNN_RNN(torch.nn.Module):
         
         fixed_edge_weights = self.fixed_edge_weights.transpose(0, 1)
         
-        dup_fixed_edge_weights = fixed_edge_weights.unsqueeze(0).expand(batch_size*self.input_horizon, -1, -1)
-        dup_fixed_edge_idx = dup_fixed_edge_weights[:, :2, :].type(torch.int32)
-        dup_fixed_edge_weights = dup_fixed_edge_weights[:, 2, :]
-        dup_fixed_edge_idx.to(self.device)
-        dup_fixed_edge_weights.to(self.device)
+        self.dup_fixed_edge_weights = fixed_edge_weights.unsqueeze(0).expand(batch_size*self.input_horizon, -1, -1)
+        self.dup_fixed_edge_idx = self.dup_fixed_edge_weights[:, :2, :].type(torch.int32)
+        self.dup_fixed_edge_weights = self.dup_fixed_edge_weights[:, 2, :]
+        self.dup_fixed_edge_idx.to(self.device)
+        self.dup_fixed_edge_weights.to(self.device)
         
         # Extracting node IDs and creating a mapping from IDs to indices
-        unique_id = dup_fixed_edge_idx[:,:,:].unique()
+        unique_id = self.dup_fixed_edge_idx[:,:,:].unique()
         map_id = {j.item(): i for i, j in enumerate(unique_id)}
 
         # Processing edge Tensor: replacing node IDs with corresponding indices
-        for i, batch in enumerate(dup_fixed_edge_idx):
+        for i, batch in enumerate(self.dup_fixed_edge_idx):
             for j, _ in enumerate(batch[0]):
-                dup_fixed_edge_idx[i, 0, j] = map_id[dup_fixed_edge_idx[i, 0, j].item()]
-                dup_fixed_edge_idx[i, 1, j] = map_id[dup_fixed_edge_idx[i, 1, j].item()]
+                self.dup_fixed_edge_idx[i, 0, j] = map_id[self.dup_fixed_edge_idx[i, 0, j].item()]
+                self.dup_fixed_edge_idx[i, 1, j] = map_id[self.dup_fixed_edge_idx[i, 1, j].item()]
         
-        x = self.GCNN(x_in, edge_idx = dup_fixed_edge_idx, edge_weights= dup_fixed_edge_weights)
+        x = self.GCNN(x_in, edge_idx = self.dup_fixed_edge_idx, edge_weights= self.dup_fixed_edge_weights)
+        
         # I reduce the input horizon by 2, because otherwise the size of x doesn't factor out to these four variables
-        x = x.view(batch_size, self.input_horizon-2, self.n_nodes, self.n_out_features)
+        x = x.view(batch_size * self.n_nodes, self.input_horizon, self.n_out_features)
         
-        h = torch.randn(1, 3070, self.h_size) *0.001
-        for i in range(self.input_horizon-2):
-            x_in = x[:, i, :, :]
-            x_out, h = self.forward_step(x_in, h)
-        print(x_out.shape)
-        return x_out
+        #change 1 to n_layers
+        h = torch.zeros((1, batch_size * self.n_nodes, self.h_size), device=self.device)
+        
+        print(" X shape: ", x.shape)
+        print("H shape: ", h.shape)
+        
+        x_out_final = torch.zeros((batch_size * self.n_nodes, self.input_horizon + self.prediction_horizon, self.n_out_features), device=self.device)
+        RNN_out, h_out = self.RNN(x, h)
+        print("x_out.shape) ", RNN_out.shape)
+        print("h_out.shape) ", h_out.shape)
+        
+        for i in range(self.input_horizon):
+            x_out_final[:, i, :] = self.MLP(RNN_out[:, i, :])
+            
+        if pred_hor > 1:
+            for i in range(pred_hor-1):
+                RNN_out, h_out = self.RNN(x_out_final[:,self.input_horizon+i, :], h_out[-1, :, :])
+                
+                x_out_final[:, self.input_horizon + i, :] = self.MLP(RNN_out[:, :, :])
+        
+        print(x_out_final.shape)        
+        print(x_out_final[0, :, :5])
+        x_out_final = x_out_final.view(batch_size, self.input_horizon + self.prediction_horizon, self.n_nodes, self.n_out_features)
+        print(x_out_final.shape)
+        return x_out_final
     
-    def forward_step(self, x_in, h):
-        x_out, h = self.RNN(x_in, h)
-        return x_out, h
