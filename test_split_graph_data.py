@@ -3,18 +3,18 @@ from src.utils.data_management.Split_graph_data import Split_graph_dataset
 import torch
 if __name__ == '__main__':
     flow_dataset = "data/mobility_data/daily_county2county_2019_01_01.csv"
-    epi_dataset = "data/data_epi/epidemiology.csv"
+    epi_dataset = "data/final_data/data_all.npy" 
     epi_dates = ["2020-06-09", "2020-06-10", "2020-06-11", "2020-06-12", "2020-06-13", "2020-06-14", "2020-06-15", "2020-06-16", "2020-06-17", "2020-06-18"]
-
+    locations_data = "data/final_data/locations_data_unique.npy"
     input_hor = 4
     pred_hor = 2
     
-    data_set = Split_graph_dataset(epi_dates=epi_dates, 
+    data_set = Split_graph_dataset(locations_data=locations_data,
                                 flow_dataset=flow_dataset,
                                 epi_dataset=epi_dataset,
                                 input_hor=input_hor,
                                 pred_hor=pred_hor,
-                                fake_data=False)
+                                fake_data=False,n_features=10)
 
     # data_sampler = GraphRNN_DataSampler(data_set, input_hor=input_hor, pred_hor=pred_hor)
     # data_loader = torch.utils.data.DataLoader(data_set, batch_size=3, sampler=data_sampler, num_workers=3)

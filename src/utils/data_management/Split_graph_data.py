@@ -7,11 +7,11 @@ import pandas as pd
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
-from src.utils.data_management.preprocessor import Preprocessor
-
+#from src.utils.data_management.preprocessor import Preprocessor
+from src.utils.data_management.preprocessor_final_data import Preprocessor
 class Split_graph_dataset(torch.utils.data.Dataset):
-    def __init__(self, epi_dates, flow_dataset="data/daily_county2county_2019_01_01.csv", 
-                 epi_dataset="data_epi/epidemiology.csv", input_hor=4, pred_hor=1, fake_data=False, normalize_edge_weights=True):
+    def __init__(self,flow_dataset="data/daily_county2county_2019_01_01.csv", 
+                 epi_dataset="final_data/X_normalized.npy",locations_data="final_data/locations_data_unique.npy", input_hor=4, pred_hor=1, fake_data=False, normalize_edge_weights=True,n_features=10):
         super(Split_graph_dataset, self).__init__()
         self.input_hor = input_hor
         self.pred_hor = pred_hor
@@ -20,8 +20,9 @@ class Split_graph_dataset(torch.utils.data.Dataset):
             self.generate_fake_data()
             return
         
-        preprocessor = Preprocessor(flow_dataset, epi_dataset, epi_dates, plottable=True)
+        preprocessor = Preprocessor(flow_dataset, epi_dataset, locations_data, plottable=True) #new preprocessor does not allow epi_dates, data is only a month
         flow_df, signals_df = preprocessor.get_data_for_graphRNN()
+        print(f"signals_df shape {signals_df[0]}")
         print(f"Flow data shape: {flow_df.head()}")
         print(f"Signals[0] data shape: {signals_df[0].head()}")
     
@@ -30,6 +31,9 @@ class Split_graph_dataset(torch.utils.data.Dataset):
         self.prev_node_ids = signals_df[0]['geoid_o'].unique().tolist()
         self.prev_node_ids.sort()
         
+        
+
+
         for i in range(self.n_time):
             self.node_ids =  signals_df[i]['geoid_o'].unique().tolist()
             self.node_ids.sort()
@@ -39,13 +43,30 @@ class Split_graph_dataset(torch.utils.data.Dataset):
             
         self.node_ids_from_edges = torch.cat((torch.tensor(flow_df['geoid_o'].unique()), torch.tensor(flow_df['geoid_d'].unique()))).unique().tolist()
         self.node_ids_from_edges.sort()
+        
+        set_node_ids = set(self.node_ids)
+        set_node_ids_from_edges = set(self.node_ids_from_edges)
+        in_set1_not_set2 = set_node_ids - set_node_ids_from_edges
+        in_set2_not_set1 = set_node_ids_from_edges - set_node_ids
+        print(f"Node IDs from signals not in node IDs from edges: {in_set1_not_set2}")
+        print(f"Node IDs from edges not in node IDs from signals: {in_set2_not_set1}")
+
+        #remove from flow_df the edges that are not in the signals
+        flow_df = flow_df[flow_df['geoid_o'].isin(self.node_ids) & flow_df['geoid_d'].isin(self.node_ids)]
+        print(f"Flow data shape after removing edges not in signals: {flow_df.head()}")
+
+        self.node_ids_from_edges = torch.cat((torch.tensor(flow_df['geoid_o'].unique()), torch.tensor(flow_df['geoid_d'].unique()))).unique().tolist()
+        self.node_ids_from_edges.sort()
+
+
         if self.node_ids != self.node_ids_from_edges:
+            
             raise ValueError(f"Node ID lists do not contain the same nodes.  Node IDs from edges: {self.node_ids_from_edges[:10]}, Node IDs from signals: {self.node_ids[:10]}. Sizes: {len(self.node_ids_from_edges)}, {len(self.node_ids)}")    
         self.n_nodes = len(self.node_ids)
         
         print(f"Number of time steps: {self.n_time}")
         print(f"Number of unique nodes with features: {len(self.node_ids)}")
-        self.n_features = 1
+        self.n_features = n_features
         self.node_id2idx = {node_id: idx for idx, node_id in enumerate(self.node_ids)}
         
         self.edge_weights =  self.calc_edge_weights(flow_df)
@@ -125,26 +146,49 @@ class Split_graph_dataset(torch.utils.data.Dataset):
         all_data = pd.DataFrame()
         
         for t, df in enumerate(signals_df):
+            print(df)
+
+
+
+
+        for t, df in enumerate(signals_df):
             df['time'] = t
-            all_data = pd.concat([all_data, df[['time', 'geoid_o', 'new_confirmed']]], axis=0)
+            all_data = pd.concat([all_data, df[['time', 'geoid_o', 'new_confirmed','population1', 'population2', 'weather1', 'weather2',\
+                                                       'cumulative_confirmed', 'cumulative_deceased', 'new_deceased',\
+                                                       'cumulative_persons_fully_vaccinated', 'new_persons_fully_vaccinated']]], axis=0)
         
         # Create a multi-index DataFrame with all dates and node_ids
         index = pd.MultiIndex.from_product([range(self.n_time), self.node_ids], names=['time', 'geoid_o'])
-        node_data_df = pd.DataFrame(0, index=index, columns=['new_confirmed'])
+        node_data_df = pd.DataFrame(0, index=index, columns=['new_confirmed','population1', 'population2', 'weather1', 'weather2',\
+                                                       'cumulative_confirmed', 'cumulative_deceased', 'new_deceased',\
+                                                       'cumulative_persons_fully_vaccinated', 'new_persons_fully_vaccinated'])
         
         # Set the index of the combined DataFrame
         all_data.set_index(['time', 'geoid_o'], inplace=True)
         
         # Update the multi-index DataFrame with the combined DataFrame
         node_data_df.update(all_data)
-        
+      
         # Unstack the DataFrame to convert it to the desired shape
-        node_data_array = node_data_df.unstack(level='geoid_o').values
-        
+        print(f"data frame before unstacking {node_data_df}")
+        #printing all features for the first node 
+
+
+
+        node_data_array = node_data_df.unstack(level='time').values
+        print(f"data array after unstacking {node_data_df}")
+        print(f"data  array shape after unstacking{node_data_array.shape}")
+        node_data_array_r =torch.tensor(node_data_array,dtype=torch.float32).reshape(3218,10,30)
+        node_data_array_r = node_data_array_r.transpose(0,2).transpose(1,2)
+       # = node_data_array.reshape((self.n_time, len(self.node_ids), -1))
+        print(f"data frame after reshaping {node_data_array_r}")
+
         # Expand dimensions and convert to tensor
-        node_data_array = np.expand_dims(node_data_array, axis=2)
-        node_data = torch.tensor(node_data_array, dtype=torch.float32)
+       # node_data_array = np.expand_dims(node_data_array, axis=2)
+      
         
+        print(f"node data shape {node_data_array_r.shape}")
+        #retunrs 30,3218,10
         return node_data
     
     def __len__(self):
