@@ -4,13 +4,13 @@ metric:
   goal: minimize
 parameters:
   num_parameters:
-    values: [1, 100, 1000, 10000, 100000]
+    values: [100, 1000, 10000, 100000]
   batch_size:
     values: [8]
   lr:
     distribution: log_uniform_values
     min: 1e-5
-    max: 1e-3
+    max: 1e-2
   normalize_edge_weights:
     values: [true, false]
   neighbor_aggregation:
