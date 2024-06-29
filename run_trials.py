@@ -34,6 +34,7 @@ def train(config=None):
             "n_features": 1,
             "profile": False,
             "min_delta": 0,
+            "patience": 15,
             "mlp_width": config.rel_mlp_width,
             "dev_run": False,
 
@@ -76,7 +77,8 @@ def train(config=None):
         
         wandb_logger = WandbLogger()
         checkpoint_callback = ModelCheckpoint(monitor="val_loss")
-        early_stopping_callback = EarlyStopping(monitor="val_loss", patience=5, min_delta=config_dict["min_delta"], mode='min', verbose=True)
+        early_stopping_callback = EarlyStopping(monitor="val_loss", patience=config["patience"], 
+                                                min_delta=config_dict["min_delta"], mode='min', verbose=True)
 
         trainer = pl.Trainer(
             logger=wandb_logger,
@@ -98,5 +100,5 @@ import yaml
 with open('sweep_config.yaml') as file:
     sweep_config = yaml.safe_load(file)
 if __name__ == "__main__":
-    sweep_id = wandb.sweep(sweep=sweep_config, project='Covid prediction Graph 300 train days', entity='GraphML_COVID')
+    sweep_id = wandb.sweep(sweep=sweep_config, project='Test GCNN RNN', entity='GraphML_COVID')
     wandb.agent(sweep_id, train, count=100)
