@@ -20,7 +20,7 @@ def train(config=None):
             "num_params" : config.num_parameters,
             "n_epochs": 2000,
             "num_train_dates": 300,
-            "num_validation_dates": 20,
+            "num_validation_dates": 22,
             "input_hor": 21,
             "pred_hor": 1,
             "batch_size": config.batch_size,
@@ -34,9 +34,10 @@ def train(config=None):
             "n_features": 1,
             "profile": False,
             "min_delta": 0,
-            "patience": 8,
+            "patience": 5,
             "mlp_width": config.rel_mlp_width,
             "dev_run": False,
+            "plot_predictions": True,
 
         }
         

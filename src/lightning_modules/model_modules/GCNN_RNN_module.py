@@ -79,23 +79,23 @@ class GCNN_RNNModule(pl.LightningModule):
 
     def on_train_end(self) -> None:
 
-        
-        input_hor = self.config["input_hor"]
-        pred_hor = self.config["pred_hor"]
-        
-        plt.figure()
-        num_plot_nodes = 5
-        colors = plt.cm.jet(np.linspace(0, 1, num_plot_nodes))
-        rand_node_idx = np.random.randint(0, self.pred.shape[2]-1, num_plot_nodes)
-        for i,node in enumerate(rand_node_idx):
-            plt.plot( self.input[0, :, node, 0].cpu().detach().numpy(), label=f"Node {node} Input", color=colors[i])
-            plt.plot( self.pred[0, :, node, 0].cpu().detach().numpy(), label=f"Node {node} pred", color=colors[i], linestyle="--")
-            plt.scatter(np.arange(self.config["input_hor"], input_hor+pred_hor),
-                        self.target[0, :, node].cpu().detach().numpy(), label=f"Node {node} Target", marker="x",
-                        color=colors[i])
-            plt.plot(self.pred[0, :, node, 0].cpu().detach().numpy(), 
-                    label=f"Node {node} Output", linestyle="--", color=colors[i])
-        plt.legend(loc = "upper left")
-        plt.title(f"Prediction end train for epoch {self.current_epoch}")
-        plt.savefig(f"prediction_plots/Prediction end train for epoch {self.current_epoch}")
-        plt.close()
+        if self.config["plot_predictions"]:
+            input_hor = self.config["input_hor"]
+            pred_hor = self.config["pred_hor"]
+            
+            plt.figure()
+            num_plot_nodes = 15
+            colors = plt.cm.jet(np.linspace(0, 1, num_plot_nodes))
+            rand_node_idx = np.random.randint(0, self.pred.shape[2]-1, num_plot_nodes)
+            for i,node in enumerate(rand_node_idx):
+                plt.plot( self.input[0, :, node, 0].cpu().detach().numpy(), label=f"Node {node} Input", color=colors[i])
+                plt.plot( self.pred[0, :, node, 0].cpu().detach().numpy(), label=f"Node {node} pred", color=colors[i], linestyle="--")
+                plt.scatter(np.arange(self.config["input_hor"], input_hor+pred_hor),
+                            self.target[0, :, node].cpu().detach().numpy(), label=f"Node {node} Target", marker="x",
+                            color=colors[i])
+                plt.plot(self.pred[0, :, node, 0].cpu().detach().numpy(), 
+                        label=f"Node {node} Output", linestyle="--", color=colors[i])
+            plt.legend(loc = "upper left")
+            plt.title(f"Prediction end train ")
+            plt.savefig(f"prediction_plots/Prediction end train model_{np.random.randint(1000)}.png", dpi=500)
+            plt.close()
