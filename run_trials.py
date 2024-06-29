@@ -21,7 +21,7 @@ def train(config=None):
             "n_epochs": 2000,
             "num_train_dates": 300,
             "num_validation_dates": 20,
-            "input_hor": 7,
+            "input_hor": 21,
             "pred_hor": 1,
             "batch_size": config.batch_size,
             "lr": config.lr,
