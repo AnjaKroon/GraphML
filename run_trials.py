@@ -17,7 +17,7 @@ def train(config=None):
         # Set up your configurations
         config_dict = {
             "model": config.model,
-            "num_params" : config.num_params,
+            "num_params" : config.num_parameters,
             "n_epochs": 2000,
             "num_train_dates": 300,
             "num_validation_dates": 20,
