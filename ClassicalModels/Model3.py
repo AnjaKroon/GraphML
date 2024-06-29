@@ -48,8 +48,7 @@ class GraphConvolutionalNetwork(nn.Module):
         x = torch.relu(x)
         x = self.gconv2(x, adj_as_edge_index)
         x = torch.relu(x)
-        x = x[:, -self.num_nodes_pred:, :] # based on the assumption that the last nodes in the sequence are the most prevalent 
-        # in the prediction
+        x = x[:, -self.num_nodes_pred:, :] # based on the assumption that the last nodes in the sequence are the most prevalent in the prediction
         x = x.view(self.num_nodes_pred, self.hidden_dim_low) # unsure if this is working exactly how I want it to
         # x = x.view(x.shape[1]) # change from [1, 3070, 10] to [3070, 10]
         x = self.MLP(x)
@@ -174,9 +173,7 @@ class GraphConvolutionalNetwork(nn.Module):
         list_of_geoids = preproc.flow.iloc[:]['geoid_o'].unique()
         num_nodes_per_day = len(list_of_geoids)
 
-        print(len(tr_epi), input_hor)
         for example_num in range(0, len(tr_epi) - (input_hor)): # this is how many times you can "shift and have valid data to pull from"
-            print("was here")
             # now draw out the adjacency matrix per example
             width_of_adj_per_example = num_nodes_per_day*input_hor
             shift = num_nodes_per_day # number of nodes per day
@@ -185,9 +182,6 @@ class GraphConvolutionalNetwork(nn.Module):
             # this should still work in the new approach
             adj_per_example = adj_kronecker_whole[ offset : offset + width_of_adj_per_example,
                                                    offset : offset + width_of_adj_per_example]
-            print(adj_kronecker_whole.shape)
-            print(f"numnnodes p day: {num_nodes_per_day} input hor: {input_hor} offset: {offset}")
-            print(adj_per_example.shape)
             # now drawing out the train_graph_signal per example
         
             # get the graph signal corresponding to the example nodes
@@ -205,13 +199,6 @@ class GraphConvolutionalNetwork(nn.Module):
         all_training_examples = all_examples[:int(len(all_examples)*train_perc)]
         # take the last 20% of the the training examples and use them as test examples
         all_test_examples = all_examples[int(len(all_examples)*train_perc):]
-            
-        print(all_training_examples[0][0].shape[0])
-        adjacency, graph_signal, target_graph_signal = all_training_examples[0]
-        num_nodes_kron = all_training_examples[0][0].shape[0]
-        graph_signal = len(all_training_examples[0][1].values())
-        print(num_nodes_kron)
-        print(graph_signal)
         return all_training_examples, all_test_examples
 
 
