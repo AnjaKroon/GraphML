@@ -8,39 +8,40 @@ import numpy as np
 from components.parametric_graph_filter import ParametricGraphFilter
 from components.space_time_pooling import SpaceTimeMaxPooling
 from torch_geometric.nn import GCNConv
+
 from preprocessor_final_data import Preprocessor
 from preprocessor_final_data import draw_network
 from preprocessor_final_data import get_adj_from_plot
-
+from torch.utils.data import Dataset
 
 
 class GraphConvolutionalNetwork(nn.Module):
-    def __init__(self, num_params, input_horizon, prediction_horizon, preproc):
+    def __init__(self, num_params, input_horizon, prediction_horizon, num_nodes):
         super(GraphConvolutionalNetwork, self).__init__()
         
         self.features = ['weather1', 'weather2', 'cumulative_confirmed', 'cumulative_deceased', 'new_deceased', 'cumulative_persons_fully_vaccinated', 'new_persons_fully_vaccinated']
-        self.training_data, self.testing_data = self.create_dataset_for_dataloader(preproc, input_horizon, prediction_horizon)
+        self.num_nodes_kron = num_nodes[0]
+        self.num_nodes_pred = num_nodes[1]
         
-        self.num_nodes_kron = self.training_data[0][0].shape[0]
-        self.num_nodes_pred = len(self.training_data[0][2])
-
-        self.num_features = len(list(self.train_graph_sig.values())[0])
+        self.num_features = input_horizon
         self.input_dim = self.num_features  # Number of features per node
-        self.output_dim = self.num_features  # Number of output features per node
+        self.output_dim = self.num_features #* prediction_horizon # Number of output features per node
         
         self.hidden_dim_low, self.hidden_dim_high = get_parameters(num_params)
+        
         self.mygconv1 = GCNConv(self.input_dim, self.hidden_dim_low)
         self.gconv2 = GCNConv(self.hidden_dim_low, self.hidden_dim_low)
         # same MLP trained per node, just declare it here
         self.MLP = nn.Sequential(
             nn.Linear(self.hidden_dim_low, self.hidden_dim_high), 
             nn.ReLU(),
-            nn.Linear(self.hidden_dim_high, self.output_dim) 
+            nn.Linear(self.hidden_dim_high, self.output_dim)
         )
 
     
     def forward(self, data):
         adj_as_edge_index = self.process_input(data)
+        adj_as_edge_index = torch.squeeze(adj_as_edge_index, dim=0) # remove the batch dimension
 
         x = torch.tensor(self.graph_signal_matrix, dtype=torch.float32)
         x = x.reshape(1, x.shape[0], x.shape[1])
@@ -50,7 +51,7 @@ class GraphConvolutionalNetwork(nn.Module):
         x = torch.relu(x)
         x = x[:, -self.num_nodes_pred:, :] # based on the assumption that the last nodes in the sequence are the most prevalent in the prediction
         x = x.view(self.num_nodes_pred, self.hidden_dim_low) # unsure if this is working exactly how I want it to
-        # x = x.view(x.shape[1]) # change from [1, 3070, 10] to [3070, 10]
+        # x = x.view(x.shape[1]) # change from [1, #nodes, #features] to [#nodes, #features]
         x = self.MLP(x)
         return x
     
@@ -74,16 +75,21 @@ class GraphConvolutionalNetwork(nn.Module):
         # target_graph_signal = torch.tensor(list(target_graph_signal.values()), dtype=torch.float32).view(-1, output_dim)
 
         # Convert adjacency to edge_index
-        adj_as_edge_index = torch.tensor(adjacency.nonzero(), dtype=torch.long)
+        adj_as_edge_index = adjacency.clone().detach()
         
         return adj_as_edge_index
 
     def getLoss(self, output):
         return nn.MSELoss()(output, self.target_graph_signal_matrix)
 
-    def create_dataset_for_dataloader(self, preproc, input_hor, pred_hor, train_perc = 0.8, test_perc = 0.2):
-        print("Getting the training graph signal...")
-
+class KroneckerDataset(Dataset):
+    def __getitem__(self, idx):
+        return self.all_examples[idx]
+    
+    def __len__(self):
+        return len(self.all_examples)
+    
+    def __init__(self, preproc, input_hor, pred_hor): #, train_perc = 0.8, test_perc = 0.2):
         # Get the kronecker
         self.graph_kronecker_whole_df = preproc.combined_manual_kronecker() # makes the pandas df from the kronecker data
         adj_kronecker_whole = get_adj_from_plot(self.graph_kronecker_whole_df)
@@ -168,7 +174,7 @@ class GraphConvolutionalNetwork(nn.Module):
             self.train_graph_sig[geoid]['cumulative_persons_fully_vaccinated'] = (self.train_graph_sig[geoid]['cumulative_persons_fully_vaccinated'] - mean_cumulative_persons_fully_vaccinated) / std_cumulative_persons_fully_vaccinated if std_cumulative_persons_fully_vaccinated != 0 else 0
             self.train_graph_sig[geoid]['new_persons_fully_vaccinated'] = (self.train_graph_sig[geoid]['new_persons_fully_vaccinated'] - mean_new_persons_fully_vaccinated) / std_new_persons_fully_vaccinated if std_new_persons_fully_vaccinated != 0 else 0
     
-        all_examples = []
+        self.all_examples = []
         
         list_of_geoids = preproc.flow.iloc[:]['geoid_o'].unique()
         num_nodes_per_day = len(list_of_geoids)
@@ -191,15 +197,17 @@ class GraphConvolutionalNetwork(nn.Module):
             # get the graph signal corresponding to the [input_hor : input_hor+pred_hor] set of nodes
             train_graph_sig_per_example_pred = {k: self.train_graph_sig[k] for k in \
                                                 list(self.train_graph_sig)[offset + (num_nodes_per_day * input_hor) : offset + num_nodes_per_day*(input_hor + pred_hor)]}
-        
-            training_example = [adj_per_example, train_graph_sig_per_example, train_graph_sig_per_example_pred]
-            all_examples.append(training_example)
+
+            adj_as_edge_index = torch.tensor(adj_per_example.nonzero(), dtype=torch.long)
+            example = [adj_as_edge_index, train_graph_sig_per_example, train_graph_sig_per_example_pred]
+            self.all_examples.append(example)
+        self.num_nodes = (width_of_adj_per_example, num_nodes_per_day * pred_hor) # (length of adj_per_example, length of train_graph_sig_per_example_pred)
+        #self.indices = self.all_examples
         
         # remove those examples from all_training_examples
-        all_training_examples = all_examples[:int(len(all_examples)*train_perc)]
+        #self.all_training_examples = self.all_examples[:int(len(self.all_examples)*train_perc)]
         # take the last 20% of the the training examples and use them as test examples
-        all_test_examples = all_examples[int(len(all_examples)*train_perc):]
-        return all_training_examples, all_test_examples
+        #self.all_test_examples = self.all_examples[int(len(self.all_examples)*train_perc):]
 
 
 def get_parameters(desired_params):
