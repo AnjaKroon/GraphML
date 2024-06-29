@@ -60,3 +60,48 @@ num_parameters:
 rel_mlp_width:
   desc: null
   value: 3
+num_params:
+  desc: null
+  value: 100000
+n_epochs:
+  desc: null
+  value: 2000
+num_train_dates:
+  desc: null
+  value: 300
+num_validation_dates:
+  desc: null
+  value: 20
+input_hor:
+  desc: null
+  value: 7
+pred_hor:
+  desc: null
+  value: 1
+max_grad_norm:
+  desc: null
+  value: 1
+num_lr_steps:
+  desc: null
+  value: 1
+lr_decay:
+  desc: null
+  value: 1
+n_nodes:
+  desc: null
+  value: 3070
+n_features:
+  desc: null
+  value: 1
+profile:
+  desc: null
+  value: false
+min_delta:
+  desc: null
+  value: 0
+mlp_width:
+  desc: null
+  value: 3
+dev_run:
+  desc: null
+  value: false

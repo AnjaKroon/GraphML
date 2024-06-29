@@ -107,37 +107,24 @@ class GCNN_RNN(torch.nn.Module):
         #change 1 to n_layers
         h = torch.zeros((1, batch_size * self.n_nodes, self.h_size), device=self.device)
         
-        print("x_into_RNN[0, :, :]: ", x_into_RNN[0, :, :])
-        print(" X into RNN shape: ", x_into_RNN.shape)
-        print("H shape: ", h.shape)
         
         x_out_final = torch.zeros((batch_size * self.n_nodes, self.input_horizon + self.prediction_horizon, self.n_out_features + self.n_features), device=self.device)
         
         RNN_out, h_out = self.RNN(x_into_RNN, h)
         
-        print("RNN_out[0, :, 0] ", RNN_out[0, :, 0])
-        print("h_out[0, :, 0] ", h_out[0, :, 0])
-        print("RNN_out.shape) ", RNN_out.shape)
-        print("h_out.shape) ", h_out.shape)
+
         
         for i in range(self.input_horizon):
-            print("RNN_out[:, i, :].shape: ", RNN_out[:, i, :].shape)
             x_out_final[:, i, :] = self.MLP(RNN_out[:, i, :])
-            print("x_out_final[0, i, :5]: ", x_out_final[0, i, :5])
+
             
         
         for i in range(pred_hor):
-            print("h_out.shape: ", h_out.shape)
             input_fed_back = x_out_final[:,self.input_horizon+i, :].clone().view(batch_size*self.n_nodes, 1,  self.n_out_features + self.n_features)
             RNN_out, h_out = self.RNN(input_fed_back, h_out)
-            print("RNN_out.shape: ", RNN_out.shape)
-            print("h_out.shape: ", h_out.shape)
+
             x_out_final[:, self.input_horizon + i, :] = self.MLP(RNN_out[:, -1, :])
-                
-        
-        print(x_out_final.shape)        
-        print(x_out_final[0, :, :5])
+            
         x_out_final = x_out_final.view(batch_size, self.input_horizon + self.prediction_horizon, self.n_nodes, self.n_out_features + self.n_features)
-        print(x_out_final.shape)
         return x_out_final
     
