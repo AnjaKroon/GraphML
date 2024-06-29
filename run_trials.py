@@ -34,7 +34,7 @@ def train(config=None):
             "n_features": 1,
             "profile": False,
             "min_delta": 0,
-            "patience": 15,
+            "patience": 8,
             "mlp_width": config.rel_mlp_width,
             "dev_run": False,
 
