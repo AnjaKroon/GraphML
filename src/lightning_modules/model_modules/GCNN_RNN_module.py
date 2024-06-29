@@ -40,7 +40,7 @@ class GCNN_RNNModule(pl.LightningModule):
     
     def criterion(self, output, target):
         MSE = torch.nn.MSELoss()
-        return MSE(output[:, -self.config["pred_hor"]:, :, :], target)
+        return MSE(output[:, -self.config["pred_hor"]:, :, -self.config["pred_hor"]:], target)
     
     def forward(self, x_in, edge_weights=None):
 

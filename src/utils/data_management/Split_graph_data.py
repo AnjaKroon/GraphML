@@ -55,9 +55,13 @@ class Split_graph_dataset(torch.utils.data.Dataset):
             mean_edge_weight = self.edge_weights[:, :, 2].mean().item()
             std_dev_edge_weight = self.edge_weights[:, :, 2].std().item()
             self.edge_weights[:, :, 2] = (self.edge_weights[:, :, 2] - mean_edge_weight) / std_dev_edge_weight
+            min_edge_weight = self.edge_weights[:, :, 2].min().item()
+            self.edge_weights[:, :, 2] = self.edge_weights[:, :, 2] - min_edge_weight
         else:
-            max_edge_weight = self.edge_weights[:, :, 2].max().item()
+            max_edge_weight = self.edge_weights[:, :, 2].abs().max().item()
             self.edge_weights[:, :, 2] = self.edge_weights[:, :, 2] / max_edge_weight
+            min_edge_weight = self.edge_weights[:, :, 2].min().item()
+            self.edge_weights[:, :, 2] = self.edge_weights[:, :, 2] - min_edge_weight
 
         for feature in range(self.n_features):
             mean_node_data = self.node_data[:, :, feature].mean().item()

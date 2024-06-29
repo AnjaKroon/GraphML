@@ -34,7 +34,8 @@ def train(config=None):
             "n_features": 1,
             "profile": False,
             "min_delta": 0,
-            "mlp_width": config.rel_mlp_width
+            "mlp_width": config.rel_mlp_width,
+            "dev_run": False,
 
         }
         
@@ -69,7 +70,7 @@ def train(config=None):
         elif config["model"] == "GCNN_RNN":
             model = GCNN_RNNModule(config_dict, fixed_edge_weights=fixed_edge_weights)
         elif config["model"] == "TCN":
-            model = TCNModule(config_dict)
+            raise NotImplementedError("TCN not implemented")
         else:
             raise NotImplementedError(f"Model {config['model']} not implemented.")
         
@@ -83,7 +84,8 @@ def train(config=None):
             max_epochs=config_dict["n_epochs"],
             accelerator="gpu" if torch.cuda.is_available() else "cpu",
             devices=1 if torch.cuda.is_available() else None,
-            log_every_n_steps=1
+            log_every_n_steps=1,
+            fast_dev_run=config_dict["dev_run"],
         )
         
         trainer.fit(model, datamodule=data_module)
