@@ -8,7 +8,7 @@ _wandb:
     framework: lightning
     is_jupyter_run: false
     is_kaggle_kernel: false
-    start_time: 1719680937
+    start_time: 1719681227
     t:
       1:
       - 1
@@ -27,7 +27,6 @@ _wandb:
       - 77
       - 103
       3:
-      - 2
       - 23
       - 24
       - 37
@@ -42,67 +41,22 @@ batch_size:
   value: 8
 lr:
   desc: null
-  value: 3.897019295055888e-05
+  value: 0.0004951954460768428
 model:
   desc: null
   value: GCNN_RNN
 n_heads:
   desc: null
-  value: 3
+  value: 2
 neighbor_aggregation:
   desc: null
   value: none
 normalize_edge_weights:
   desc: null
-  value: true
+  value: false
 num_parameters:
   desc: null
-  value: 100000
+  value: 1000
 rel_mlp_width:
   desc: null
   value: 3
-num_params:
-  desc: null
-  value: 100000
-n_epochs:
-  desc: null
-  value: 2000
-num_train_dates:
-  desc: null
-  value: 300
-num_validation_dates:
-  desc: null
-  value: 20
-input_hor:
-  desc: null
-  value: 7
-pred_hor:
-  desc: null
-  value: 1
-max_grad_norm:
-  desc: null
-  value: 1
-num_lr_steps:
-  desc: null
-  value: 1
-lr_decay:
-  desc: null
-  value: 1
-n_nodes:
-  desc: null
-  value: 3070
-n_features:
-  desc: null
-  value: 1
-profile:
-  desc: null
-  value: false
-min_delta:
-  desc: null
-  value: 0
-mlp_width:
-  desc: null
-  value: 3
-dev_run:
-  desc: null
-  value: false
