@@ -66,18 +66,18 @@ def train(config=None):
         print("edge weights shape: ", data_set.edge_weights.shape)
         fixed_edge_weights = data_set.edge_weights[0, :, :]    
         
-        if config["model"] == "GRNN":
+        if config_dict["model"] == "GRNN":
             model = GraphRNNModule(config_dict, fixed_edge_weights=fixed_edge_weights)
-        elif config["model"] == "GCNN_RNN":
+        elif config_dict["model"] == "GCNN_RNN":
             model = GCNN_RNNModule(config_dict, fixed_edge_weights=fixed_edge_weights)
-        elif config["model"] == "TCN":
+        elif config_dict["model"] == "TCN":
             raise NotImplementedError("TCN not implemented")
         else:
-            raise NotImplementedError(f"Model {config['model']} not implemented.")
+            raise NotImplementedError(f"Model {config_dict['model']} not implemented.")
         
         wandb_logger = WandbLogger()
         checkpoint_callback = ModelCheckpoint(monitor="val_loss")
-        early_stopping_callback = EarlyStopping(monitor="val_loss", patience=config["patience"], 
+        early_stopping_callback = EarlyStopping(monitor="val_loss", patience=config_dict["patience"], 
                                                 min_delta=config_dict["min_delta"], mode='min', verbose=True)
 
         trainer = pl.Trainer(
