@@ -1,200 +1,107 @@
-# Adapted from lab 2
-
 from tqdm import tqdm
 
 import math
 import torch
 from torch import nn
+import numpy as np
 
 from components.parametric_graph_filter import ParametricGraphFilter
 from components.space_time_pooling import SpaceTimeMaxPooling
+from torch_geometric.nn import GCNConv
 
 
-class ParametricNetWithPooling(torch.nn.Module):
-    def __init__(self, n_nodes, n_features, h_size, f_out_size, fixed_edge_weights=None , device='cpu', dtype=torch.float32):
-        """ Initialize the Graph RNN
-        Args:
-            n_nodes (int): number of nodes in the graph
-            n_features (int): number of features in the input tensor
-            h_size (int): size of the hidden state
-            f_size (int): size of the vector returned by the neighbor aggregation function
-            edge_weights (torch.Tensor): edge weights tensor of shape (batch, n_time_steps, n_edges, 3), per edge (node1 , node2, edge_feat)
-            """
-        self.internal__init__(window=0,
-                 cyclic_time_graph=False,
-                 time_directed=True,
-                 S_spatial=n_nodes,
-                 n_feat_per_layer=[n_features],
-                 n_taps_per_layer=[3],
-                 n_active_nodes_per_timestep_per_layer=[3],
-                 time_pooling_ratio_per_layer=[3],
-                 pool_reach_per_layer=[3],
-                 output_dim=1,
-                 device=device,
-                 verbose = True
-                 )
-    
-    def internal__init__(self,
-                 window: int,
-                 cyclic_time_graph: bool,
-                 time_directed: bool,
-                 S_spatial: torch.Tensor,
-                 n_feat_per_layer: list,
-                 n_taps_per_layer: list,
-                 n_active_nodes_per_timestep_per_layer: list,
-                 time_pooling_ratio_per_layer: list,
-                 pool_reach_per_layer: list,
-                 output_dim: int,
-                 device: str,
-                 PG_type: list = [0,0,0,0],
-                 verbose: bool = False
-                 ):
-        """
-        """
-        ###############################################################################
-        # window: observation window (int)
-        # cyclic_time-graph: temporal graph is cyclic (boolian)
-        # time_directed: temporal graph is directed (boolian)
-        # S_spatial: spatial graph shift operator (torch.Tensor)
-        # n_feat_per_layer: number of hidden features in each layer including input layer (list)
-        # n_taps_per_layer: graph filter order in each layer (list)
 
-        ## zero pad pooling parameters =>
-
-        # n_active_nodes_per_timestep_per_layer: number of active nodes in each layer (list)
-        # time_pooling_ratio_per_layer: pooling ratio per layer (list)
-        # pool_reach_per_layer: pooling locality in each layer (list)
-
-        ## Note: to ignore pooling set:
-        #       n_active_nodes_per_timestep_per_layer = [n_stations]*(number_of_layers + 1)
-        #       time_pooling_ratio_per_layer = [1]*(number_of_layers)
-        #       n_active_nodes_per_timestep_per_layer = [1]*(number_of_layers)
-
-        ##
-
-        # output_dim: dimension of the output
-        # device: hardware device
-        # PG_type: type of the product graph [s_00,s_10,s_01,s_11], set all zeros for parametric product graph (list)
-        # verbos: summary writer (boolian)
-        ###############################################################################
-        super(ParametricNetWithPooling, self).__init__()
-
-        self.verbose = verbose
-        if self.verbose:
-            print("\n\n[ParametricNetWithPooling]. Initialization started.")
-            print(f"Window is: {window}")
-            print(f"N. nodes in spatial graph: {S_spatial.shape[0]}")
-        self.window = window
-        self.cyclic_time_graph = cyclic_time_graph
-        self.is_time_directed = time_directed
-        self.S_spatial = S_spatial
-        self.n_feat_per_layer = n_feat_per_layer
-        self.n_taps_per_layer = n_taps_per_layer
-        self.n_active_nodes_per_timestep_per_layer = n_active_nodes_per_timestep_per_layer
-        self.time_pooling_ratio_per_layer = time_pooling_ratio_per_layer
-        self.pool_reach_per_layer = pool_reach_per_layer
-        self.output_dim = output_dim
-        self.PG_type = PG_type
-        self.device = device
-
-        self.n_timesteps_per_layer = self.compute_timesteps_per_layer()
-        self.n_active_nodes_at_each_layer = self.compute_active_nodes_per_layer()
-
-        self.perform_dimensionality_checks()
-
-        sequential_modules = self.build_layers()
-        self.GFL = nn.Sequential(*sequential_modules)
-
-        # Fully connected layer
-        fc_in = self.n_active_nodes_at_each_layer[-1] * self.n_feat_per_layer[-1]
-        fc_out = self.output_dim
-        self.fc = nn.Linear(fc_in, fc_out)
-
-        if self.verbose:
-            print("[ParametricNetWithPooling]. Initialization completed.")
-
-    def compute_timesteps_per_layer(self):
-        timesteps = [self.window]
-        number_of_observations = self.window
-        for pooling_factor in self.time_pooling_ratio_per_layer:
-            pooling_factor = pooling_factor if pooling_factor <= number_of_observations else 1
-            number_of_observations = math.ceil(number_of_observations / pooling_factor)
-            timesteps.append(number_of_observations)
-
-        if self.verbose:
-            print(f"Timesteps per layer: {timesteps}")
-        return timesteps
-
-    def compute_active_nodes_per_layer(self):
-        if self.verbose:
-            print(f"N. active nodes per timestep per layer: {self.n_active_nodes_per_timestep_per_layer}")
-        active_nodes_per_layer = []
-        for i in range(len(self.n_active_nodes_per_timestep_per_layer)):
-            actives_nodes = self.n_active_nodes_per_timestep_per_layer[i] * self.n_timesteps_per_layer[i]
-            active_nodes_per_layer.append(actives_nodes)
-
-        if self.verbose:
-            print(f"N. of active nodes per layer: {active_nodes_per_layer}")
-        return active_nodes_per_layer
-
-    def perform_dimensionality_checks(self):
-        n_layers = len(self.n_taps_per_layer)
-        assert len(self.n_feat_per_layer) == n_layers + 1
-        assert len(self.n_active_nodes_per_timestep_per_layer) == n_layers + 1
-        assert len(self.n_taps_per_layer) == n_layers
-        assert len(self.time_pooling_ratio_per_layer) == n_layers
-        assert len(self.pool_reach_per_layer) == n_layers
-        assert len(self.n_active_nodes_at_each_layer) == n_layers + 1
-        assert len(self.S_spatial.shape) == 2 and self.S_spatial.shape[0] == self.S_spatial.shape[1]
-
-    def build_layers(self):
-        layers = []
-        num_of_layers = len(self.n_taps_per_layer)
-        for l in range(num_of_layers):
-            param_filter = ParametricGraphFilter(S_spatial=self.S_spatial,
-                                                 n_timesteps=self.n_timesteps_per_layer[l],
-                                                 cyclic=self.cyclic_time_graph,
-                                                 is_time_directed=self.is_time_directed,
-                                                 n_feat_in=self.n_feat_per_layer[l],
-                                                 n_feat_out=self.n_feat_per_layer[l + 1],
-                                                 num_filter_taps=self.n_taps_per_layer[l],
-                                                 device=self.device,
-                                                 PG_type=self.PG_type,
-                                                 verbose=self.verbose)
-            layers.append(param_filter)
-            layers.append(torch.nn.ReLU())
-            pooling = SpaceTimeMaxPooling(S_spatial=self.S_spatial,
-                                          cyclic=self.cyclic_time_graph,
-                                          is_time_directed=self.is_time_directed,
-                                          n_active_nodes_in=self.n_active_nodes_at_each_layer[l],
-                                          n_active_nodes_out=self.n_active_nodes_at_each_layer[l + 1],
-                                          n_timesteps_in=self.n_timesteps_per_layer[l], n_timesteps_out=self.n_timesteps_per_layer[l + 1],
-                                          n_hops=self.pool_reach_per_layer[l], total_observations=self.window,
-                                          verbose=self.verbose)
-            layers.append(pooling)
-        return layers
+class GraphConvolutionalNetwork(nn.Module):
+    def __init__(self, num_params, input_horizon, prediction_horizon, num_features, input_dim, output_dim, num_nodes_kron, num_nodes_pred):
+        super(GraphConvolutionalNetwork, self).__init__()
+        self.hidden_dim_low, self.hidden_dim_high = get_parameters(num_params)
+        self.mygconv1 = GCNConv(input_dim, self.hidden_dim_low)
+        self.gconv2 = GCNConv(self.hidden_dim_low, self.hidden_dim_low)
+        # same MLP trained per node, just declare it here
+        self.MLP = nn.Sequential(
+            nn.Linear(self.hidden_dim_low, self.hidden_dim_high), 
+            nn.ReLU(),
+            nn.Linear(self.hidden_dim_high, output_dim) 
+        )
+        self.num_features = num_features
+        self.num_nodes_kron = num_nodes_kron
+        self.num_nodes_pred = num_nodes_pred
+        self.features = ['weather1', 'weather2', 'cumulative_confirmed', 'cumulative_deceased', 'new_deceased', 'cumulative_persons_fully_vaccinated', 'new_persons_fully_vaccinated']
 
     
-    def forward(self, x_in, edge_weights=None, pred_hor = 1):
-        """ Forward pass of the Graph RNN
-        Args:
+    def forward(self, data):
+        adj_as_edge_index = self.process_input(data)
 
-            x_in (torch.Tensor): input tensor of shape (batch, n_time_steps, n_nodes, n_features)
-            edge_weights (torch.Tensor): edge weights tensor of shape (batch, n_time_steps, n_edges, 3), per edge (node1 , node2, edge_feat)
-            pred_hor (int): number of time steps to predict
-            """
-        return self.internal_forward(x_in)
+        x = torch.tensor(self.graph_signal_matrix, dtype=torch.float32)
+        x = x.reshape(1, x.shape[0], x.shape[1])
+        x = self.mygconv1(x, adj_as_edge_index)
+        x = torch.relu(x)
+        x = self.gconv2(x, adj_as_edge_index)
+        x = torch.relu(x)
+        x = x[:, -self.num_nodes_pred:, :] # based on the assumption that the last nodes in the sequence are the most prevalent 
+        # in the prediction
+        x = x.view(self.num_nodes_pred, self.hidden_dim_low) # unsure if this is working exactly how I want it to
+        # x = x.view(x.shape[1]) # change from [1, 3070, 10] to [3070, 10]
+        x = self.MLP(x)
+        return x
     
-    def internal_forward(self, x):
-        """
-        x is of shape [batch_size, input_features, total_num_of_nodes]
-        """
-        assert x.shape[1] == self.n_feat_per_layer[0]
-        assert x.shape[2] == self.n_active_nodes_at_each_layer[0], f"{x.shape} /// {self.n_active_nodes_at_each_layer}"
+    def preprocess(self, flow_dataset, epi_dataset, locations_data, plottable=True):
+        preproc = preprocessor_final_data.Preprocessor(flow_dataset, epi_dataset, locations_data, plottable=True)
+        graph_kronecker_whole_df = preproc.combined_manual_kronecker() # makes the pandas df from the kronecker data
+        num_nodes_per_day = len(list_of_geoids)
+        adj_kronecker_whole = get_adj_from_plot(graph_kronecker_whole_df)
 
-        x_convoluted_pooled = self.GFL(x)
-        #print(x_convoluted_pooled[0])
-        x_flattened = x_convoluted_pooled.reshape(x.shape[0], -1)  # flatten to feed into fc layer
-        #print(x_flattened[0])
-        y = self.fc(x_flattened)
-        return y
+        # Convert adjacency to edge_index
+        adj_as_edge_index = torch.tensor(adjacency.nonzero(), dtype=torch.long)
+    
+    def process_input(self, data):
+        adjacency, graph_signal, target_graph_signal = data
+        
+        # Ensure graph_signal should have shape [number_of_nodes_kron, input_dim]
+        self.graph_signal_matrix = np.zeros((self.num_nodes_kron, self.num_features)) # the graph signal matrix will change per training example
+
+        for cur_node, element in enumerate(list(graph_signal.values())):
+            for i in range(self.num_features):
+                self.graph_signal_matrix[cur_node, i] = np.squeeze(element[self.features[i]])
+
+        # needs to have shape [num_nodes_pred, input_dim]
+        self.target_graph_signal_matrix = np.zeros((self.num_nodes_pred, self.num_features)) # the graph signal matrix will change per training example
+
+        for cur_node, element in enumerate(list(target_graph_signal.values())):
+            for i in range(self.num_features):
+                self.target_graph_signal_matrix[cur_node, i] = np.squeeze(element[self.features[i]])
+        self.target_graph_signal_matrix = torch.tensor(self.target_graph_signal_matrix, dtype=torch.float32)
+        # target_graph_signal = torch.tensor(list(target_graph_signal.values()), dtype=torch.float32).view(-1, output_dim)
+
+        # Convert adjacency to edge_index
+        adj_as_edge_index = torch.tensor(adjacency.nonzero(), dtype=torch.long)
+        
+        return adj_as_edge_index
+
+    def getLoss(self, output):
+        return nn.MSELoss()(output, self.target_graph_signal_matrix)
+
+def get_parameters(desired_params):
+    mlp_params = round_up_to_nearest_hundred(desired_params*(2/3))
+    gcn_params = round_up_to_nearest_hundred(desired_params*(1/3))
+
+    low_params = round_to_nearest_ten(max(solve_quadratic(1, 2, -gcn_params)))
+    high_params = round_to_nearest_ten(mlp_params / (low_params + 2))
+
+    return low_params, high_params
+
+def round_up_to_nearest_hundred(number):
+    return math.ceil(number / 100) * 100
+
+def round_to_nearest_ten(number):
+    return round(number / 10) * 10
+
+def solve_quadratic(a, b, c):
+    discriminant = b**2 - 4*a*c
+    if discriminant < 0:
+        return None, None  # No real solutions
+    else:
+        # Calculate the two solutions
+        sol1 = (-b + math.sqrt(discriminant)) / (2*a)
+        sol2 = (-b - math.sqrt(discriminant)) / (2*a)
+        return sol1, sol2
