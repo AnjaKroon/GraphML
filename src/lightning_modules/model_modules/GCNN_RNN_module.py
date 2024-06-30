@@ -28,7 +28,7 @@ class GCNN_RNNModule(pl.LightningModule):
 
         self.h_size = self.calc_params(config["num_params"])
         self.h_size = self.h_size
-        self.n_out_features = config["num_gcnn_out_features"]
+        self.n_out_features = config["num_gcnn_output_features"]
         
         self.model = GCNN_RNN( input_horizon= config["input_hor"], prediction_horizon= config["pred_hor"],
                               n_nodes= config["n_nodes"], n_features= config["n_features"], 
