@@ -153,8 +153,9 @@ class Graph_RNN(torch.nn.Module):
         
         AH = torch.einsum('bnij,bnj->bni', self.A_expanded, self.H_prev)
         
-        # BX = torch.einsum('bnij,bnj->bni', self.B_expanded, x_in)
-        BX = self.inputMLP(x_in.view(batch_size*self.n_nodes, self.n_features)).view(batch_size, self.n_nodes, self.h_size)
+        
+        BX = self.inputMLP(x_in.reshape(batch_size*self.n_nodes, self.n_features))
+        BX = BX.reshape(batch_size, self.n_nodes, self.h_size)
         
         if self.use_neighbors:
             CAG = torch.einsum('bnij,bnj->bni', self.C_expanded, self.neigh_ag)

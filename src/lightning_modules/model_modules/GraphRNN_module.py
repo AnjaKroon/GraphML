@@ -48,12 +48,14 @@ class GraphRNNModule(pl.LightningModule):
         # + 2* (h_size*mlp_width)**2
         # approx= (2*mlp_width**2+ 2 + use_neighbor)*h_size**2
         import math
+        n_layers = 2
+        n_mlps = 2 #input to hidden and hidden to output
         if self.config["neighbor_aggregation"] == "mean":
-            h_size = math.sqrt(num_params/(2*self.config["mlp_width"]**2 + self.config["mlp_width"]  + 2 + 1))
+            h_size = math.sqrt(num_params/(n_layers*n_mlps*self.config["mlp_width"]**2 + self.config["mlp_width"]  + 2 + 1))
         elif self.config["neighbor_aggregation"] == "attention":
-            h_size = math.sqrt(num_params/(2*self.config["mlp_width"]**2 + self.config["mlp_width"] +  2 + self.config["n_heads"]*2 + 1 ))
+            h_size = math.sqrt(num_params/(n_layers*n_mlps*self.config["mlp_width"]**2 + self.config["mlp_width"] +  2 + self.config["n_heads"]*2 + 1 ))
         elif self.config["neighbor_aggregation"] == "none":
-            h_size = math.sqrt(num_params/(2*self.config["mlp_width"]**2+ self.config["mlp_width"] + 2))
+            h_size = math.sqrt(num_params/(n_layers*n_mlps*self.config["mlp_width"]**2+ self.config["mlp_width"] + 2))
         else:
             raise NotImplementedError(f"Neighbor aggregation method {self.config['neighbor_aggregation']} not implemented.")
         print(f"Calculated h_size: {int(h_size)}")
