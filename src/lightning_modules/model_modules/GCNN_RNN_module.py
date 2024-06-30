@@ -42,7 +42,7 @@ class GCNN_RNNModule(pl.LightningModule):
         import math
         h_size = math.ceil(math.sqrt(num_params/4))
         print("Stil need to implement calculation params for GCNN_RNNModule. Now using  dummy values")
-        return h_size, 10
+        return h_size, int(h_size/4)
     
     def criterion(self, output, target):
         MSE = torch.nn.MSELoss()
