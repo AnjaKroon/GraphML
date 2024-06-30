@@ -103,5 +103,5 @@ import yaml
 with open('sweep_config.yaml') as file:
     sweep_config = yaml.safe_load(file)
 if __name__ == "__main__":
-    sweep_id = wandb.sweep(sweep=sweep_config, project='GRNN and GCNN RNN', entity='GraphML_COVID', name='Input mlp with GCNN RNN')
+    sweep_id = wandb.sweep(sweep=sweep_config, project='GCNN RNN with input mlp', entity='GraphML_COVID')
     wandb.agent(sweep_id, train, count=100)
