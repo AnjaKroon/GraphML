@@ -9,9 +9,9 @@ from components.parametric_graph_filter import ParametricGraphFilter
 from components.space_time_pooling import SpaceTimeMaxPooling
 from torch_geometric.nn import GCNConv
 
-from preprocessor_final_data import Preprocessor
-from preprocessor_final_data import draw_network
-from preprocessor_final_data import get_adj_from_plot
+from preprocessor import Preprocessor
+from preprocessor import draw_network
+from preprocessor import get_adj_from_plot
 from torch.utils.data import Dataset
 
 
@@ -19,11 +19,12 @@ class GraphConvolutionalNetwork(nn.Module):
     def __init__(self, num_params, input_horizon, prediction_horizon, num_nodes):
         super(GraphConvolutionalNetwork, self).__init__()
         
-        self.features = ['weather1', 'weather2', 'cumulative_confirmed', 'cumulative_deceased', 'new_deceased', 'cumulative_persons_fully_vaccinated', 'new_persons_fully_vaccinated']
+        #self.features = ['weather1', 'weather2', 'cumulative_confirmed', 'cumulative_deceased', 'new_deceased', 'cumulative_persons_fully_vaccinated', 'new_persons_fully_vaccinated']
+        self.features = ['cumulative_confirmed']
         self.num_nodes_kron = num_nodes[0]
         self.num_nodes_pred = num_nodes[1]
         
-        self.num_features = input_horizon
+        self.num_features = len(self.features)
         self.input_dim = self.num_features  # Number of features per node
         self.output_dim = self.num_features #* prediction_horizon # Number of output features per node
         
@@ -81,7 +82,7 @@ class GraphConvolutionalNetwork(nn.Module):
         return adj_as_edge_index
 
     def getLoss(self, output):
-        return nn.MSELoss()(output[:, 2], self.target_graph_signal_matrix[:, 2])
+        return nn.MSELoss()(output, self.target_graph_signal_matrix)
 
 class KroneckerDataset(Dataset):
     def __getitem__(self, idx):
@@ -104,76 +105,28 @@ class KroneckerDataset(Dataset):
             for geoid in day.geoid_o:
                 if geoid not in self.train_graph_sig: # which should be for every day
                     self.train_graph_sig[geoid] = {
-                        'weather1': [],
-                        'weather2': [],
                         'cumulative_confirmed': [],
-                        'cumulative_deceased': [],
-                        'new_deceased': [],
-                        'cumulative_persons_fully_vaccinated': [],
-                        'new_persons_fully_vaccinated': []
                     }
         
-                self.train_graph_sig[geoid]['weather1'].append(day.weather1[entry_count])
-                self.train_graph_sig[geoid]['weather2'].append(day.weather2[entry_count])
                 self.train_graph_sig[geoid]['cumulative_confirmed'].append(day.cumulative_confirmed[entry_count])
-                self.train_graph_sig[geoid]['cumulative_deceased'].append(day.cumulative_deceased[entry_count])
-                self.train_graph_sig[geoid]['new_deceased'].append(day.new_deceased[entry_count])
-                self.train_graph_sig[geoid]['cumulative_persons_fully_vaccinated'].append(day.cumulative_persons_fully_vaccinated[entry_count])
-                self.train_graph_sig[geoid]['new_persons_fully_vaccinated'].append(day.new_persons_fully_vaccinated[entry_count])
                 entry_count += 1
                 
         # sort train_graph_sig by geoid_o
         self.train_graph_sig = dict(sorted(self.train_graph_sig.items(), key=lambda item: item[0]))
     
         # Combine all values for each feature across all geo_ids
-        weather1_values = []
-        weather2_values = []
         cumulative_confirmed_values = []
-        cumulative_deceased_values = []
-        new_deceased_values = []
-        cumulative_persons_fully_vaccinated_values = []
-        new_persons_fully_vaccinated_values = []
         
         for geoid in self.train_graph_sig:
-            weather1_values.extend(self.train_graph_sig[geoid]['weather1'])
-            weather2_values.extend(self.train_graph_sig[geoid]['weather2'])
             cumulative_confirmed_values.extend(self.train_graph_sig[geoid]['cumulative_confirmed'])
-            cumulative_deceased_values.extend(self.train_graph_sig[geoid]['cumulative_deceased'])
-            new_deceased_values.extend(self.train_graph_sig[geoid]['new_deceased'])
-            cumulative_persons_fully_vaccinated_values.extend(self.train_graph_sig[geoid]['cumulative_persons_fully_vaccinated'])
-            new_persons_fully_vaccinated_values.extend(self.train_graph_sig[geoid]['new_persons_fully_vaccinated'])
         
         # Calculate mean and std for each feature across all geo_ids
-        mean_weather1 = np.mean(weather1_values)
-        std_weather1 = np.std(weather1_values)
-        
-        mean_weather2 = np.mean(weather2_values)
-        std_weather2 = np.std(weather2_values)
-        
         mean_cumulative_confirmed = np.mean(cumulative_confirmed_values)
         std_cumulative_confirmed = np.std(cumulative_confirmed_values)
         
-        mean_cumulative_deceased = np.mean(cumulative_deceased_values)
-        std_cumulative_deceased = np.std(cumulative_deceased_values)
-        
-        mean_new_deceased = np.mean(new_deceased_values)
-        std_new_deceased = np.std(new_deceased_values)
-        
-        mean_cumulative_persons_fully_vaccinated = np.mean(cumulative_persons_fully_vaccinated_values)
-        std_cumulative_persons_fully_vaccinated = np.std(cumulative_persons_fully_vaccinated_values)
-        
-        mean_new_persons_fully_vaccinated = np.mean(new_persons_fully_vaccinated_values)
-        std_new_persons_fully_vaccinated = np.std(new_persons_fully_vaccinated_values)
-        
         # Normalize each feature list in train_graph_sig across all geo_ids
         for geoid in self.train_graph_sig:
-            self.train_graph_sig[geoid]['weather1'] = (self.train_graph_sig[geoid]['weather1'] - mean_weather1) / std_weather1 if std_weather1 != 0 else 0
-            self.train_graph_sig[geoid]['weather2'] = (self.train_graph_sig[geoid]['weather2'] - mean_weather2) / std_weather2 if std_weather2 != 0 else 0
             self.train_graph_sig[geoid]['cumulative_confirmed'] = (self.train_graph_sig[geoid]['cumulative_confirmed'] - mean_cumulative_confirmed) / std_cumulative_confirmed if std_cumulative_confirmed != 0 else 0
-            self.train_graph_sig[geoid]['cumulative_deceased'] = (self.train_graph_sig[geoid]['cumulative_deceased'] - mean_cumulative_deceased) / std_cumulative_deceased if std_cumulative_deceased != 0 else 0
-            self.train_graph_sig[geoid]['new_deceased'] = (self.train_graph_sig[geoid]['new_deceased'] - mean_new_deceased) / std_new_deceased if std_new_deceased != 0 else 0
-            self.train_graph_sig[geoid]['cumulative_persons_fully_vaccinated'] = (self.train_graph_sig[geoid]['cumulative_persons_fully_vaccinated'] - mean_cumulative_persons_fully_vaccinated) / std_cumulative_persons_fully_vaccinated if std_cumulative_persons_fully_vaccinated != 0 else 0
-            self.train_graph_sig[geoid]['new_persons_fully_vaccinated'] = (self.train_graph_sig[geoid]['new_persons_fully_vaccinated'] - mean_new_persons_fully_vaccinated) / std_new_persons_fully_vaccinated if std_new_persons_fully_vaccinated != 0 else 0
     
         self.all_examples = []
         
