@@ -53,6 +53,7 @@ class GraphConvolutionalNetwork(nn.Module):
         x = x.view(self.num_nodes_pred, self.hidden_dim_low) # unsure if this is working exactly how I want it to
         # x = x.view(x.shape[1]) # change from [1, #nodes, #features] to [#nodes, #features]
         x = self.MLP(x)
+        # 2D matrix -- column from this matrix  [num_nodes_pred, num_features] -> [num_nodes_pred, cum_confirmed]
         return x
     
     def process_input(self, data):
@@ -80,7 +81,7 @@ class GraphConvolutionalNetwork(nn.Module):
         return adj_as_edge_index
 
     def getLoss(self, output):
-        return nn.MSELoss()(output, self.target_graph_signal_matrix)
+        return nn.MSELoss()(output[:, 2], self.target_graph_signal_matrix[:, 2])
 
 class KroneckerDataset(Dataset):
     def __getitem__(self, idx):
