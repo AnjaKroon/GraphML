@@ -39,6 +39,7 @@ def train(config=None):
             "dev_run": False,
             "plot_predictions": True,
             "num_gcnn_output_features": config.num_gcnn_output_features,
+            "n_heads": config.n_heads,
 
         }
         
