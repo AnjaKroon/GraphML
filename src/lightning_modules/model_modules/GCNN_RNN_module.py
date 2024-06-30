@@ -26,9 +26,9 @@ class GCNN_RNNModule(pl.LightningModule):
         # Setup the model
         
 
-        self.h_size, self.n_out_features = self.calc_params(config["num_params"])
+        self.h_size = self.calc_params(config["num_params"])
         self.h_size = self.h_size
-        self.n_out_features = self.n_out_features
+        self.n_out_features = config["num_gcnn_out_features"]
         
         self.model = GCNN_RNN( input_horizon= config["input_hor"], prediction_horizon= config["pred_hor"],
                               n_nodes= config["n_nodes"], n_features= config["n_features"], 
@@ -42,7 +42,7 @@ class GCNN_RNNModule(pl.LightningModule):
         import math
         h_size = math.ceil(math.sqrt(num_params/4))
         print("Stil need to implement calculation params for GCNN_RNNModule. Now using  dummy values")
-        return h_size, int(h_size/4)
+        return h_size
     
     def criterion(self, output, target):
         MSE = torch.nn.MSELoss()

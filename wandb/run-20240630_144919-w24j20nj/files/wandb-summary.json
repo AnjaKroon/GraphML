@@ -1,1 +1,1 @@
-{"num_model_parameters": 566, "_timestamp": 1719752172.4558132, "_runtime": 412.68492126464844, "_step": 2536, "train_loss_step": 0.00043658321374095976, "epoch": 211, "trainer/global_step": 2113, "val_loss": 0.00025377384736202657, "train_loss_epoch": 0.0003832207294180989
+{"num_model_parameters": 566, "_timestamp": 1719752216.7535536, "_runtime": 456.9826617240906, "_step": 2917, "train_loss_step": 0.0002742605865933001, "epoch": 243, "trainer/global_step": 2430, "val_loss": 0.00023108645109459758, "train_loss_epoch": 0.00036037483369000256}

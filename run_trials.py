@@ -33,11 +33,12 @@ def train(config=None):
             "n_nodes": 3070,
             "n_features": 1,
             "profile": False,
-            "min_delta": 0,
+            "min_delta": 5e-5,
             "patience": 5,
             "mlp_width": config.rel_mlp_width,
             "dev_run": False,
             "plot_predictions": True,
+            "num_gcnn_output_features": config.num_gcnn_output_features,
 
         }
         

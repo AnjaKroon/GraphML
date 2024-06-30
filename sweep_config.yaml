@@ -27,4 +27,7 @@ parameters:
     distribution: int_uniform
     min: 1
     max: 3
+  num_GCNN_out_features:
+    values: [0, 1, 10, 100]
+
 
