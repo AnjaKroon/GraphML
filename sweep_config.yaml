@@ -6,7 +6,7 @@ parameters:
   num_parameters:
     values: [100, 1000, 10000, 100000]
   batch_size:
-    values: [8]
+    values: [2]
   lr:
     distribution: log_uniform_values
     min: 1e-5
