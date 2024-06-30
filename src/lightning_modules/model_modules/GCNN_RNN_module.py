@@ -80,7 +80,7 @@ class GCNN_RNNModule(pl.LightningModule):
         
         return loss
 
-    def on_validation_batch_end(self, outputs: torch.Tensor | os.Mapping[str, os.Any] | None, batch: os.Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+    def on_train_end(self) -> None:
         
         if self.config["plot_predictions"]:
             input_hor = self.config["input_hor"]
@@ -103,5 +103,5 @@ class GCNN_RNNModule(pl.LightningModule):
             plt.savefig(f"prediction_plots/Prediction end train model_{np.random.randint(1000)}.png", dpi=500)
             plt.close()
         
-        return super().on_validation_batch_end(outputs, batch, batch_idx, dataloader_idx)
+        return super().on_train_end()
 
