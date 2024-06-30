@@ -3,3 +3,4 @@
 data_epi/epidemiology.csv
 *.pth
 *log*
+db.sqlite3

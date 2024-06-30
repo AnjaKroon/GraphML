@@ -1,0 +1,18 @@
+wandb_version: 1
+
+batch_size:
+  value: 2
+lr:
+  value: 1.5561891043612273e-05
+model:
+  value: GCNN_RNN
+n_heads:
+  value: 2
+neighbor_aggregation:
+  value: none
+normalize_edge_weights:
+  value: false
+num_parameters:
+  value: 1000
+rel_mlp_width:
+  value: 1

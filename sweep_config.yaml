@@ -1,0 +1,30 @@
+method: bayes
+metric:
+  name: val_loss
+  goal: minimize
+parameters:
+  num_parameters:
+    values: [ 100000, 1e6]
+  batch_size:
+    values: [2]
+  lr:
+    distribution: log_uniform_values
+    min: 1e-7
+    max: 1e-4
+  normalize_edge_weights:
+    values: [true]
+  neighbor_aggregation:
+    values: ["mean", "attention", "none"]
+
+  model:
+    values: ["GCNN_RNN", "GRNN"]
+  n_heads:
+    values: [2]
+  rel_mlp_width:
+    values: [2]
+  num_gcnn_output_features:
+    values: [100]
+  input_horizon:
+    values: [ 21]
+
+

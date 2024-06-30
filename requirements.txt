@@ -1,0 +1,12 @@
+matplotlib
+networkx
+numpy
+optuna
+pandas
+pytorch_lightning
+scikit_learn
+scipy
+torch
+torch_geometric
+tqdm
+tensorboard

@@ -1,0 +1,53 @@
+{
+    "os": "Windows-10-10.0.22631-SP0",
+    "python": "3.9.19",
+    "heartbeatAt": "2024-06-29T16:40:21.120439",
+    "startedAt": "2024-06-29T16:40:20.620190",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "c:\\Users\\thoma\\GraphML\\run_trials.py",
+    "codePathLocal": "run_trials.py",
+    "codePath": "run_trials.py",
+    "git": {
+        "remote": "https://github.com/AnjaKroon/GraphML.git",
+        "commit": "ce07dbddb4963d231038e5eb01886f09827d6c05"
+    },
+    "email": "thomasevers9@gmail.com",
+    "root": "C:/Users/thoma/GraphML",
+    "host": "Thomas",
+    "username": "thoma",
+    "executable": "C:\\Users\\thoma\\OneDrive - Delft University of Technology\\Documenten\\UNI\\Graph ML\\.conda\\python.exe",
+    "cpu_count": 14,
+    "cpu_count_logical": 20,
+    "cpu_freq": {
+        "current": 2300.0,
+        "min": 0.0,
+        "max": 2300.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 2300.0,
+            "min": 0.0,
+            "max": 2300.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 456.03515243530273,
+            "used": 419.03392028808594
+        }
+    },
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce RTX 3050 Laptop GPU",
+            "memory_total": 4294967296
+        }
+    ],
+    "memory": {
+        "total": 15.692127227783203
+    }
+}
