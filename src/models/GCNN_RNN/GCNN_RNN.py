@@ -13,7 +13,8 @@ class GCNN(torch.nn.Module):
         self.dtype = dtype
         self.fixed_edge_weights = fixed_edge_weights
         
-        self.graph_convolution = pyg.nn.GCNConv(n_features, n_output_features)
+        self.graph_convolution1 = pyg.nn.GCNConv(n_features, n_output_features)
+        self.graph_convolution2 = pyg.nn.GCNConv(n_output_features, n_output_features)
         
     def forward(self, x, edge_idx, edge_weights=None):
         """ x: torch.Tensor of shape (batch,n_nodes, n_features)
@@ -24,6 +25,9 @@ class GCNN(torch.nn.Module):
         
         for i in range(x.shape[0]):  
             out_GCN_conv = self.graph_convolution(x[i, :, :], edge_idx[i, :, :], edge_weights[i, :])
+            out_GCN_conv = torch.nn.functional.relu(out_GCN_conv)
+            out_GCN_conv = self.graph_convolution2(out_GCN_conv, edge_idx[i, :, :], edge_weights[i, :])
+            out_GCN_conv = torch.nn.functional.relu(out_GCN_conv)
             x_out[i, :, :] = out_GCN_conv
         return x_out
 """
