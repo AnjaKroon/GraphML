@@ -10,6 +10,9 @@ import torch
 
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')  # Set the backend to 'Agg'
+
 import numpy as np
         
 class GCNN_RNNModule(pl.LightningModule):
@@ -77,8 +80,8 @@ class GCNN_RNNModule(pl.LightningModule):
         
         return loss
 
-    def on_train_end(self) -> None:
-
+    def on_validation_batch_end(self, outputs: torch.Tensor | os.Mapping[str, os.Any] | None, batch: os.Any, batch_idx: int, dataloader_idx: int = 0) -> None:
+        
         if self.config["plot_predictions"]:
             input_hor = self.config["input_hor"]
             pred_hor = self.config["pred_hor"]
@@ -99,3 +102,6 @@ class GCNN_RNNModule(pl.LightningModule):
             plt.title(f"Prediction end train ")
             plt.savefig(f"prediction_plots/Prediction end train model_{np.random.randint(1000)}.png", dpi=500)
             plt.close()
+        
+        return super().on_validation_batch_end(outputs, batch, batch_idx, dataloader_idx)
+

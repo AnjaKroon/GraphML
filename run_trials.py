@@ -89,6 +89,8 @@ def train(config=None):
             devices=1 if torch.cuda.is_available() else None,
             log_every_n_steps=1,
             fast_dev_run=config_dict["dev_run"],
+            gradient_clip_algorithm='norm',
+            gradient_clip_val=config_dict["max_grad_norm"],
         )
         
         trainer.fit(model, datamodule=data_module)

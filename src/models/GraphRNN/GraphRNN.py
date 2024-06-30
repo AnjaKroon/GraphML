@@ -64,6 +64,15 @@ class Graph_RNN(torch.nn.Module):
             torch.nn.ReLU(),
             torch.nn.Linear(mlp_width*h_size, n_features)
         )
+        
+        self.inputMLP = torch.nn.Sequential(
+            torch.nn.Linear(n_features, mlp_width*h_size),
+            torch.nn.ReLU(),
+            torch.nn.Linear(h_size*mlp_width, h_size*mlp_width),
+            torch.nn.ReLU(),
+            torch.nn.Linear(h_size*mlp_width, h_size)
+        )
+        
         if self.fixed_edge_weights is not None:
             self.node_idx = self.fixed_edge_weights[:, 0].unique()
         else:
@@ -143,7 +152,10 @@ class Graph_RNN(torch.nn.Module):
         # Perform matrix multiplications with explicit dimension specification using einsum
         
         AH = torch.einsum('bnij,bnj->bni', self.A_expanded, self.H_prev)
-        BX = torch.einsum('bnij,bnj->bni', self.B_expanded, x_in)
+        
+        # BX = torch.einsum('bnij,bnj->bni', self.B_expanded, x_in)
+        BX = self.inputMLP(x_in.view(batch_size*self.n_nodes, self.n_features)).view(batch_size, self.n_nodes, self.h_size)
+        
         if self.use_neighbors:
             CAG = torch.einsum('bnij,bnj->bni', self.C_expanded, self.neigh_ag)
         else:
