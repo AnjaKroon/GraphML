@@ -121,12 +121,8 @@ class GCNN_RNN(torch.nn.Module):
         
         RNN_out, h_out = self.RNN(x_into_RNN, h)
         
-
-        
         for i in range(self.input_horizon):
-            x_out_final[:, i, :] = self.MLP(RNN_out[:, i, :])
-
-            
+            x_out_final[:, i, :] = self.MLP(RNN_out[:, i, :])  
         
         for i in range(pred_hor):
             input_fed_back = x_out_final[:,self.input_horizon+i, :].clone().view(batch_size*self.n_nodes, 1,  self.n_out_features + self.n_features)
