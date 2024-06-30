@@ -33,7 +33,7 @@ def train(config=None):
             "n_nodes": 3070,
             "n_features": 1,
             "profile": False,
-            "min_delta": 5e-5,
+            "min_delta": 5e-6,
             "patience": 5,
             "mlp_width": config.rel_mlp_width,
             "dev_run": False,
@@ -85,7 +85,7 @@ def train(config=None):
         
         checkpoint_callback = ModelCheckpoint(monitor="val_loss")
         early_stopping_callback = EarlyStopping(monitor="val_loss", patience=config_dict["patience"], 
-                                                min_delta=config_dict["min_delta"], mode='min', verbose=True)
+                                                min_delta=config_dict["min_delta"], mode='min', verbose=False)
 
         trainer = pl.Trainer(
             logger=wandb_logger,
