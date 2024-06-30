@@ -9,7 +9,7 @@ parameters:
     values: [2]
   lr:
     distribution: log_uniform_values
-    min: 1e-6
+    min: 1e-7
     max: 1e-4
   normalize_edge_weights:
     values: [true]

@@ -24,7 +24,7 @@ class GCNN(torch.nn.Module):
 
         
         for i in range(x.shape[0]):  
-            out_GCN_conv = self.graph_convolution(x[i, :, :], edge_idx[i, :, :], edge_weights[i, :])
+            out_GCN_conv = self.graph_convolution1(x[i, :, :], edge_idx[i, :, :], edge_weights[i, :])
             out_GCN_conv = torch.nn.functional.relu(out_GCN_conv)
             out_GCN_conv = self.graph_convolution2(out_GCN_conv, edge_idx[i, :, :], edge_weights[i, :])
             out_GCN_conv = torch.nn.functional.relu(out_GCN_conv)
