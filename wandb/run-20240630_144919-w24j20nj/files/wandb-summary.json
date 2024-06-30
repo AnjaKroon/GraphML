@@ -1,0 +1,1 @@
+{"num_model_parameters": 566, "_timestamp": 1719751962.1379097, "_runtime": 202.36701774597168, "_step": 804, "train_loss_step": 0.0003804374428000301, "epoch": 66, "trainer/global_step": 669, "val_loss": 0.00040874292608350515, "train_loss_epoch": 0.000538805034011602

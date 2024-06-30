@@ -77,6 +77,11 @@ def train(config=None):
             raise NotImplementedError(f"Model {config_dict['model']} not implemented.")
         
         wandb_logger = WandbLogger()
+        
+        #log num of model parameters here
+        num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        wandb.log({"real_num_model_parameters": num_params})
+        
         checkpoint_callback = ModelCheckpoint(monitor="val_loss")
         early_stopping_callback = EarlyStopping(monitor="val_loss", patience=config_dict["patience"], 
                                                 min_delta=config_dict["min_delta"], mode='min', verbose=True)
