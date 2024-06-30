@@ -19,8 +19,8 @@ def train(config=None):
             "model": config.model,
             "num_params" : config.num_parameters,
             "n_epochs": 2000,
-            "num_train_dates": 300,
-            "num_validation_dates": 40,
+            "num_train_dates": 40,
+            "num_validation_dates": 30,
             "input_hor": 21,
             "pred_hor": 1,
             "batch_size": config.batch_size,
@@ -103,5 +103,5 @@ import yaml
 with open('sweep_config.yaml') as file:
     sweep_config = yaml.safe_load(file)
 if __name__ == "__main__":
-    sweep_id = wandb.sweep(sweep=sweep_config, project='GRNN with input mlp', entity='GraphML_COVID')
+    sweep_id = wandb.sweep(sweep=sweep_config, project='GRNN and GCNN RNN', entity='GraphML_COVID', name='Input mlp with GCNN RNN')
     wandb.agent(sweep_id, train, count=100)

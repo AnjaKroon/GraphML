@@ -17,7 +17,7 @@ parameters:
     # values: ["mean", "attention", "none"]
     values: ["none"]
   model:
-    values: ["GRNN"]
+    values: ["GCNN_RNN"]
     # values: ["TCN", "GCNN_RNN", "GRNN"]
   n_heads:
     distribution: int_uniform

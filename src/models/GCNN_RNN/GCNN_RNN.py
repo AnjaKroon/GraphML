@@ -57,6 +57,15 @@ class GCNN_RNN(torch.nn.Module):
                          dtype= dtype, fixed_edge_weights= fixed_edge_weights)
         self.GCNN.to(device)
         self.RNN = torch.nn.RNN(input_size=n_out_features+n_features, hidden_size=h_size,  batch_first=True, device=device, dtype=dtype)
+        self.MLP2RNN = torch.nn.Sequential(
+            torch.nn.Linear(n_out_features, n_out_features*mlp_width),
+            torch.nn.ReLU(),
+            torch.nn.Linear(n_out_features*mlp_width, n_out_features*mlp_width),
+            torch.nn.ReLU(),
+            torch.nn.Linear(n_out_features*mlp_width, n_out_features)
+        )
+        
+        
         self.MLP = torch.nn.Sequential(
             torch.nn.Linear(h_size, h_size*mlp_width),
             torch.nn.ReLU(),
@@ -97,13 +106,13 @@ class GCNN_RNN(torch.nn.Module):
 
         x_out_of_GCNN = self.GCNN(x_in, edge_idx = self.dup_fixed_edge_idx, edge_weights= self.dup_fixed_edge_weights)
         
+        x_out_ofMLP2RNN = self.MLP2RNN(x_out_of_GCNN)
 
-        # I reduce the input horizon by 2, because otherwise the size of x doesn't factor out to these four variables
-        x_out_of_GCNN = x_out_of_GCNN.view(batch_size * self.n_nodes, self.input_horizon, self.n_out_features)
+        x_out_ofMLP2RNN = x_out_ofMLP2RNN.view(batch_size * self.n_nodes, self.input_horizon, self.n_out_features)
         
         x_into_RNN = torch.zeros((batch_size * self.n_nodes, self.input_horizon, self.n_out_features+self.n_features), device=self.device)
         x_into_RNN[:, :, :self.n_features] = x_in.view(batch_size * self.n_nodes, self.input_horizon, self.n_features)
-        x_into_RNN[:, :, self.n_features:] = x_out_of_GCNN
+        x_into_RNN[:, :, self.n_features:] = x_out_ofMLP2RNN
         #change 1 to n_layers
         h = torch.zeros((1, batch_size * self.n_nodes, self.h_size), device=self.device)
         
